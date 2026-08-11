@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ANFATRE Art Agent — teste Canva</title>
+  <style>
+    :root { --green:#289942; --blue:#1e78c2; --yellow:#ffd036; --ink:#2c2e35; --paper:#f5f6f2; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; background:var(--paper); color:var(--ink); font-family:Arial,sans-serif; }
+    main { width:min(720px,calc(100% - 32px)); background:white; border-top:10px solid var(--green); padding:48px; box-shadow:0 8px 30px rgba(44,46,53,.1); }
+    .flag { display:grid; grid-template-columns:1fr 1fr 1fr; height:8px; margin:-48px -48px 42px; }
+    .flag span:nth-child(1){background:var(--blue)} .flag span:nth-child(2){background:var(--green)} .flag span:nth-child(3){background:var(--yellow)}
+    .eyebrow { color:var(--green); font-size:13px; font-weight:800; letter-spacing:.09em; }
+    h1 { font-size:clamp(32px,6vw,58px); line-height:.98; margin:12px 0 20px; text-transform:uppercase; }
+    p { color:#656a73; line-height:1.6; max-width:58ch; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:30px; }
+    button,a.button { border:0; border-radius:3px; padding:15px 20px; font-weight:800; font-size:15px; cursor:pointer; text-decoration:none; }
+    .primary { background:var(--green); color:white; }
+    .secondary { background:var(--yellow); color:var(--ink); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    #status { margin-top:24px; padding:14px 16px; border-left:5px solid var(--blue); background:#f1f7fc; color:var(--ink); }
+    #result { margin-top:18px; }
+    #preview { display:none; width:180px; margin-top:16px; border:1px solid #ddd; }
+    @media (max-width:560px) { main{padding:30px}.flag{margin:-30px -30px 30px} }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="flag"><span></span><span></span><span></span></div>
+    <div class="eyebrow">PROVA DE INTEGRAÇÃO</div>
+    <h1>ANFATRE<br>Art Agent</h1>
+    <p>Este teste conecta sua conta, envia os seis modelos oficiais de post da ANFATRE e devolve o link direto para o editor do Canva.</p>
+    <div class="actions">
+      <a id="connect" class="button primary" href="/api/canva/connect">1. Conectar Canva</a>
+      <button id="import" class="secondary" disabled>2. Criar biblioteca editável</button>
+    </div>
+    <div id="status">Verificando configuração…</div>
+    <div id="result"></div>
+    <img id="preview" alt="Prévia do design importado">
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
