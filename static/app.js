@@ -8,20 +8,21 @@ const connectCanva = document.getElementById("connect-canva");
 const canvaTitle = document.getElementById("canva-title");
 const canvaCopy = document.getElementById("canva-copy");
 const briefForm = document.getElementById("brief-form");
-const templateSelect = document.getElementById("templateId");
-const submitBrief = document.getElementById("submit-brief");
+const rawBrief = document.getElementById("rawBrief");
+const interpretBrief = document.getElementById("interpret-brief");
 const formNotice = document.getElementById("form-notice");
+const briefReview = document.getElementById("brief-review");
+const reviewSummary = document.getElementById("review-summary");
+const briefList = document.getElementById("brief-list");
+const createSelected = document.getElementById("create-selected");
 const jobMessage = document.getElementById("job-message");
 const jobError = document.getElementById("job-error");
 const result = document.getElementById("result");
-const templateTag = document.getElementById("template-tag");
-const caption = document.getElementById("caption");
-const editCanva = document.getElementById("edit-canva");
-const copyCaption = document.getElementById("copy-caption");
+const resultsList = document.getElementById("results-list");
 const steps = [...document.querySelectorAll(".step")];
 
 let currentStatus = null;
-let currentCaption = "";
+let parsedItems = [];
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
@@ -38,6 +39,12 @@ function statusPill(label, ok, warningLabel) {
   return `<span class="pill ${state}"><span class="dot"></span>${ok ? label : warningLabel}</span>`;
 }
 
+function updateCreateButton() {
+  const selected = briefList.querySelectorAll('input[type="checkbox"]:checked').length;
+  createSelected.disabled = !currentStatus?.connected || !selected;
+  createSelected.textContent = selected ? `Criar ${selected} ${selected === 1 ? "arte" : "artes"} no Canva` : "Selecione ao menos uma arte";
+}
+
 function renderStatus(status) {
   currentStatus = status;
   headerStatus.innerHTML = [
@@ -45,32 +52,24 @@ function renderStatus(status) {
     statusPill("IA ativa", status.aiConfigured, "Modo de teste"),
   ].join("");
 
-  templateSelect.innerHTML = "";
-  for (const template of status.templates || []) {
-    const option = document.createElement("option");
-    option.value = template.id;
-    option.textContent = template.label;
-    templateSelect.appendChild(option);
-  }
-
   if (status.connected) {
     canvaTitle.textContent = "Canva conectado";
-    canvaCopy.textContent = "Os novos posts serão criados na conta autorizada.";
+    canvaCopy.textContent = "Os briefings aprovados serão criados na conta autorizada.";
     connectCanva.textContent = "Reconectar conta";
     connectCanva.className = "button ghost";
   } else {
     canvaTitle.textContent = "Conecte o Canva";
-    canvaCopy.textContent = "Uma pessoa autoriza a conta; depois o agente usa essa conexão para criar os editáveis.";
+    canvaCopy.textContent = "Você já pode interpretar o briefing. Para criar as artes, uma pessoa precisa autorizar a conta.";
     connectCanva.textContent = "Conectar Canva";
     connectCanva.className = "button accent";
   }
-  submitBrief.disabled = !status.connected;
 
+  updateCreateButton();
   if (!status.connected) {
-    formNotice.textContent = "Conecte a conta Canva acima antes de enviar o primeiro briefing.";
+    formNotice.textContent = "O Canva está desconectado. Você pode conferir a interpretação do briefing, mas precisará conectar a conta antes de criar as artes.";
     formNotice.hidden = false;
   } else if (!status.aiConfigured) {
-    formNotice.textContent = "Modo de teste ativo: o fluxo e os layouts funcionam, mas ainda usam copy direta do briefing e fotografias aprovadas. A IA será ativada com uma chave da OpenAI API.";
+    formNotice.textContent = "Modo de teste ativo: o briefing e os carrosséis funcionam, mas posts que vierem apenas com título ainda usam textos e fotografias de teste.";
     formNotice.hidden = false;
   } else {
     formNotice.hidden = true;
@@ -119,77 +118,169 @@ logoutButton.addEventListener("click", async () => {
   await refreshStatus();
 });
 
+function renderBriefItems(items) {
+  parsedItems = items;
+  briefList.replaceChildren();
+  for (const item of items) {
+    const row = document.createElement("div");
+    row.className = "brief-item";
+
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = true;
+    check.dataset.itemId = item.id;
+    check.setAttribute("aria-label", `Selecionar ${item.title}`);
+    check.addEventListener("change", updateCreateButton);
+
+    const date = document.createElement("div");
+    date.className = "brief-date";
+    date.textContent = item.date;
+
+    const copy = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "brief-title";
+    title.textContent = item.title;
+    const meta = document.createElement("div");
+    meta.className = "brief-meta";
+    meta.textContent = item.kind === "carousel"
+      ? `Carrossel · ${item.slideCount} telas · ${item.format}`
+      : `Post único · ${item.format}`;
+    copy.append(title, meta);
+    for (const message of item.warnings || []) {
+      const warning = document.createElement("div");
+      warning.className = "brief-warning";
+      warning.textContent = `Confira: ${message}`;
+      copy.appendChild(warning);
+    }
+    row.append(check, date, copy);
+    briefList.appendChild(row);
+  }
+
+  const carousels = items.filter((item) => item.kind === "carousel").length;
+  const warnings = items.reduce((total, item) => total + (item.warnings?.length || 0), 0);
+  reviewSummary.textContent = `${items.length} ${items.length === 1 ? "post encontrado" : "posts encontrados"}${carousels ? `, sendo ${carousels} ${carousels === 1 ? "carrossel" : "carrosséis"}` : ""}${warnings ? ` · ${warnings} ponto para conferir` : ""}.`;
+  briefReview.hidden = false;
+  updateCreateButton();
+}
+
+briefForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  interpretBrief.disabled = true;
+  briefReview.hidden = true;
+  jobError.hidden = true;
+  result.hidden = true;
+  jobMessage.textContent = "Lendo datas, títulos e telas…";
+  try {
+    const data = await api("/api/briefings/parse", {
+      method: "POST",
+      body: JSON.stringify({ text: rawBrief.value }),
+    });
+    renderBriefItems(data.items);
+    jobMessage.textContent = "Briefing interpretado. Confira os posts encontrados antes de criar.";
+  } catch (error) {
+    jobError.textContent = error.message;
+    jobError.hidden = false;
+    jobMessage.textContent = "Não consegui interpretar este briefing.";
+  } finally {
+    interpretBrief.disabled = false;
+  }
+});
+
 const stepOrder = ["planning", "image", "design", "canva", "done"];
 
-function renderProgress(job) {
-  jobMessage.textContent = job.message;
+function renderProgress(job, prefix = "") {
+  jobMessage.textContent = `${prefix}${job.message}`;
   const currentIndex = stepOrder.indexOf(job.status);
   steps.forEach((step) => {
     const index = stepOrder.indexOf(step.dataset.step);
     step.classList.toggle("done", job.status === "done" || (currentIndex > index && currentIndex >= 0));
     step.classList.toggle("active", index === currentIndex);
-    if (step.classList.contains("done")) step.querySelector(".step-number").textContent = "✓";
-    else step.querySelector(".step-number").textContent = String(index + 1);
+    step.querySelector(".step-number").textContent = step.classList.contains("done") ? "✓" : String(index + 1);
   });
 }
 
-function templateLabel(id) {
-  return currentStatus?.templates?.find((item) => item.id === id)?.label || id;
-}
-
-function showResult(job) {
-  currentCaption = job.result.caption || "";
-  templateTag.textContent = templateLabel(job.plan?.templateId);
-  caption.textContent = currentCaption || "Legenda não gerada no modo atual.";
-  editCanva.href = job.result.editUrl;
-  result.hidden = false;
-}
-
-async function pollJob(id) {
-  const deadline = Date.now() + 6 * 60_000;
+async function pollJob(id, prefix) {
+  const deadline = Date.now() + 7 * 60_000;
   while (Date.now() < deadline) {
     const job = await api(`/api/jobs/${encodeURIComponent(id)}`);
-    renderProgress(job);
-    if (job.status === "done") return showResult(job);
+    renderProgress(job, prefix);
+    if (job.status === "done") return job;
     if (job.status === "failed") throw new Error(job.error || "Não foi possível criar o post");
     await new Promise((resolve) => setTimeout(resolve, 1800));
   }
   throw new Error("A criação está demorando mais que o esperado. Verifique novamente em instantes.");
 }
 
-briefForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
+function addResult(item, job, error = null) {
+  const card = document.createElement("div");
+  card.className = `result-item${error ? " error" : ""}`;
+  const title = document.createElement("strong");
+  title.textContent = `${item.date} — ${item.title}`;
+  const detail = document.createElement("p");
+  detail.textContent = error ? error.message : `${item.slideCount} ${item.slideCount === 1 ? "página editável" : "páginas editáveis"} criadas.`;
+  card.append(title, detail);
+
+  if (!error) {
+    const actions = document.createElement("div");
+    actions.className = "result-actions";
+    const edit = document.createElement("a");
+    edit.className = "button primary";
+    edit.href = job.result.editUrl;
+    edit.target = "_blank";
+    edit.rel = "noopener noreferrer";
+    edit.textContent = "Editar no Canva";
+    const copy = document.createElement("button");
+    copy.className = "button ghost";
+    copy.type = "button";
+    copy.textContent = "Copiar legenda";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(job.result.caption || "");
+        copy.textContent = "Legenda copiada";
+        setTimeout(() => { copy.textContent = "Copiar legenda"; }, 1800);
+      } catch {
+        copy.textContent = "Não foi possível copiar";
+      }
+    });
+    actions.append(edit, copy);
+    card.appendChild(actions);
+  }
+  resultsList.appendChild(card);
+}
+
+createSelected.addEventListener("click", async () => {
   if (!currentStatus?.connected) return;
-  submitBrief.disabled = true;
-  result.hidden = true;
+  const selectedIds = new Set([...briefList.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.dataset.itemId));
+  const selected = parsedItems.filter((item) => selectedIds.has(item.id));
+  if (!selected.length) return;
+
+  createSelected.disabled = true;
+  interpretBrief.disabled = true;
   jobError.hidden = true;
-  steps.forEach((step) => step.classList.remove("done", "active"));
-  jobMessage.textContent = "Enviando briefing…";
+  resultsList.replaceChildren();
+  result.hidden = false;
+  let completed = 0;
 
-  const data = Object.fromEntries(new FormData(briefForm).entries());
-  data.generateImage = document.getElementById("generateImage").checked;
-  try {
-    const job = await api("/api/jobs", { method: "POST", body: JSON.stringify(data) });
-    renderProgress(job);
-    await pollJob(job.id);
-  } catch (error) {
-    jobError.textContent = error.message;
-    jobError.hidden = false;
-    jobMessage.textContent = "O trabalho foi interrompido.";
-    if (/Canva/i.test(error.message)) await refreshStatus().catch(() => {});
-  } finally {
-    submitBrief.disabled = !currentStatus?.connected;
+  for (const [index, item] of selected.entries()) {
+    const prefix = `Arte ${index + 1} de ${selected.length}: `;
+    try {
+      const queued = await api("/api/jobs", { method: "POST", body: JSON.stringify(item.brief) });
+      renderProgress(queued, prefix);
+      const job = await pollJob(queued.id, prefix);
+      addResult(item, job);
+      completed += 1;
+    } catch (error) {
+      addResult(item, null, error);
+      if (/Canva|conta conectada/i.test(error.message)) {
+        await refreshStatus().catch(() => {});
+        break;
+      }
+    }
   }
-});
 
-copyCaption.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText(currentCaption);
-    copyCaption.textContent = "Legenda copiada";
-    setTimeout(() => { copyCaption.textContent = "Copiar legenda"; }, 1800);
-  } catch {
-    copyCaption.textContent = "Selecione e copie acima";
-  }
+  jobMessage.textContent = `${completed} de ${selected.length} ${completed === 1 ? "arte criada" : "artes criadas"}.`;
+  interpretBrief.disabled = false;
+  updateCreateButton();
 });
 
 const query = new URLSearchParams(location.search);

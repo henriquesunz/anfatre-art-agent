@@ -50,12 +50,25 @@
     input,select,textarea { width:100%; border:1px solid #cfd4cd; border-radius:0; background:#fff; color:var(--ink); padding:12px 13px; outline:none; }
     input:focus,select:focus,textarea:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(30,120,194,.12); }
     textarea { min-height:118px; resize:vertical; line-height:1.5; }
+    .brief-paste { min-height:410px; font-family:Montserrat,Arial,sans-serif; font-size:14px; }
     .hint { margin-top:6px; font-size:11px; color:#7a7f87; line-height:1.4; }
     .check { display:flex; align-items:flex-start; gap:10px; padding:13px; background:var(--blue-soft); }
     .check input { width:18px; height:18px; margin:1px 0 0; accent-color:var(--green); }
     .check label { margin:0; font-weight:700; line-height:1.4; }
     .form-actions { display:flex; align-items:center; gap:14px; margin-top:24px; }
     .form-note { color:var(--muted); font-size:11px; line-height:1.4; }
+    .review { margin-top:26px; padding-top:24px; border-top:1px solid var(--line); }
+    .review-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; margin-bottom:15px; }
+    .review-head h3 { margin:0 0 5px; font-size:20px; }
+    .review-head p { margin:0; color:var(--muted); font-size:12px; }
+    .brief-list { display:grid; gap:10px; }
+    .brief-item { display:grid; grid-template-columns:22px 72px 1fr; gap:12px; align-items:start; padding:15px; border:1px solid var(--line); background:#fafbf9; }
+    .brief-item input { width:18px; height:18px; margin:2px 0 0; accent-color:var(--green); }
+    .brief-date { background:var(--blue); color:#fff; padding:6px 7px; font-size:11px; font-weight:900; text-align:center; }
+    .brief-title { font-size:14px; font-weight:800; line-height:1.35; }
+    .brief-meta { color:var(--muted); font-size:11px; margin-top:5px; }
+    .brief-warning { color:#8a5a00; background:#fff3c4; padding:7px 9px; font-size:11px; line-height:1.4; margin-top:8px; }
+    .review-actions { display:flex; align-items:center; gap:14px; margin-top:16px; }
     .notice { border-left:5px solid var(--blue); background:var(--blue-soft); padding:14px 16px; margin-bottom:18px; font-size:13px; line-height:1.5; }
     .notice.warning { border-color:#e8a500; background:#fff8df; }
     .notice.error { border-color:var(--danger); background:#fff1f0; color:#7a271a; }
@@ -70,6 +83,13 @@
     .template-tag { display:inline-block; padding:6px 8px; background:#edf7ef; color:var(--green-dark); font-size:11px; font-weight:800; margin-bottom:12px; }
     .caption { white-space:pre-wrap; padding:13px; background:#f6f7f5; color:#565b64; line-height:1.45; font-size:12px; max-height:170px; overflow:auto; }
     .result-actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:14px; }
+    .result-list { display:grid; gap:12px; }
+    .result-item { border:1px solid var(--line); padding:14px; background:#fafbf9; }
+    .result-item.error { border-left:4px solid var(--danger); }
+    .result-item strong { display:block; font-size:13px; line-height:1.4; }
+    .result-item p { margin:5px 0 0; color:var(--muted); font-size:11px; }
+    .result-item .result-actions { margin-top:10px; }
+    .result-item .button { min-height:36px; padding:8px 11px; font-size:11px; }
     .login-wrap { min-height:calc(100vh - 120px); display:grid; place-items:center; }
     .login-card { width:min(480px,100%); background:#fff; border-top:9px solid var(--green); padding:38px; box-shadow:0 16px 50px rgba(44,46,53,.1); }
     .login-card h1 { font-size:38px; margin-bottom:14px; }
@@ -77,7 +97,7 @@
     .login-card .button { width:100%; margin-top:14px; }
     .small-link { appearance:none; border:0; background:transparent; color:var(--muted); text-decoration:underline; cursor:pointer; padding:8px; }
     @media (max-width:820px) { .hero,.grid { grid-template-columns:1fr; } .hero-side { min-height:170px; } }
-    @media (max-width:600px) { .shell{padding:32px 16px 48px}.topbar{align-items:flex-start}.status-row{display:none}.hero-copy,.card{padding:24px}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.form-actions{align-items:stretch;flex-direction:column}.button{width:100%}.top-actions .button{width:auto}.brandsub{display:none} }
+    @media (max-width:600px) { .shell{padding:32px 16px 48px}.topbar{align-items:flex-start}.status-row{display:none}.hero-copy,.card{padding:24px}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.form-actions,.review-actions{align-items:stretch;flex-direction:column}.button{width:100%}.top-actions .button{width:auto}.brandsub{display:none}.brief-item{grid-template-columns:22px 58px 1fr;padding:12px;gap:9px}.brief-paste{min-height:330px} }
   </style>
 </head>
 <body>
@@ -111,7 +131,7 @@
         <div class="hero-copy">
           <div class="eyebrow">Novo trabalho</div>
           <h1>Do briefing<br>ao Canva.</h1>
-          <p>Preencha o essencial. O agente organiza a mensagem, escolhe um layout aprovado da ANFATRE e prepara o post editável para revisão.</p>
+          <p>Cole o briefing que já chega para o designer. O agente separa as datas, reconhece posts e carrosséis e prepara tudo para revisão.</p>
         </div>
         <div class="hero-side">
           <strong id="canva-title">Verificando o Canva…</strong>
@@ -122,78 +142,44 @@
 
       <div class="grid">
         <section class="card">
-          <h2>Briefing do post</h2>
-          <p class="card-intro">Não precisa escrever um prompt. Responda como responderia para alguém do time de criação.</p>
+          <h2>Cole o briefing</h2>
+          <p class="card-intro">Pode colar a quinzena inteira, do mesmo jeito que ela chega hoje para o designer.</p>
           <div id="form-notice" class="notice warning" hidden></div>
           <form id="brief-form">
-            <div class="fields">
-              <div class="field">
-                <label for="jobTitle">Nome do trabalho *</label>
-                <input id="jobTitle" name="jobTitle" maxlength="80" placeholder="Ex.: Segurança no engate" required>
-              </div>
-              <div class="field">
-                <label for="objective">Objetivo</label>
-                <select id="objective" name="objective">
-                  <option value="educar">Educar ou orientar</option>
-                  <option value="segurança">Segurança</option>
-                  <option value="institucional">Institucional</option>
-                  <option value="engajamento">Engajamento</option>
-                  <option value="campanha de marca">Campanha de marca</option>
-                  <option value="carrossel">Abrir um carrossel</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="audience">Para quem é?</label>
-                <input id="audience" name="audience" maxlength="120" placeholder="Ex.: proprietários de motorhome">
-              </div>
-              <div class="field">
-                <label for="templateId">Modelo</label>
-                <select id="templateId" name="templateId"></select>
-                <div class="hint">Em “O agente escolhe”, ele decide entre os seis layouts aprovados.</div>
-              </div>
-              <div class="field full">
-                <label for="mainMessage">O que o post precisa comunicar? *</label>
-                <textarea id="mainMessage" name="mainMessage" maxlength="1200" placeholder="Inclua os fatos obrigatórios, contexto e qualquer informação que não pode ser alterada." required></textarea>
-              </div>
-              <div class="field full">
-                <label for="cta">Chamada para ação</label>
-                <input id="cta" name="cta" maxlength="180" placeholder="Ex.: Acesse o site e consulte os associados">
-              </div>
-              <div class="field full">
-                <label for="visualDirection">Direção da imagem</label>
-                <textarea id="visualDirection" name="visualDirection" maxlength="500" placeholder="Ex.: motorhome em estrada brasileira, clima de liberdade, luz de fim de tarde"></textarea>
-              </div>
-              <div class="field full check">
-                <input id="generateImage" name="generateImage" type="checkbox" checked>
-                <label for="generateImage">Criar uma fotografia nova quando o modelo escolhido usar imagem. Se a IA não estiver configurada, será usada uma foto aprovada de teste.</label>
-              </div>
-            </div>
+            <label for="rawBrief">Briefing recebido *</label>
+            <textarea id="rawBrief" name="rawBrief" class="brief-paste" maxlength="100000" placeholder="Ex.:&#10;&#10;11/08 -&#10;1. Título: Glossário do Caravanista...&#10;2. Tamanho da Arte: Timeline Instagram&#10;&#10;21/08 -&#10;1. Título:&#10;TELA 1: ...&#10;TELA 2: ..." required></textarea>
             <div class="form-actions">
-              <button id="submit-brief" class="button primary" type="submit">Criar post editável</button>
-              <div class="form-note">A criação pode levar de 1 a 3 minutos. Clique apenas uma vez.</div>
+              <button id="interpret-brief" class="button primary" type="submit">Interpretar briefing</button>
+              <div class="form-note">Primeiro o agente mostra o que encontrou. Nenhuma arte é criada nesta etapa.</div>
             </div>
           </form>
+
+          <section id="brief-review" class="review" hidden>
+            <div class="review-head">
+              <div><h3>Confira antes de criar</h3><p id="review-summary"></p></div>
+            </div>
+            <div id="brief-list" class="brief-list"></div>
+            <div class="review-actions">
+              <button id="create-selected" class="button accent" type="button">Criar selecionados no Canva</button>
+              <div class="form-note">Cada data vira um design. Carrosséis chegam com todas as páginas no mesmo arquivo.</div>
+            </div>
+          </section>
         </section>
 
         <aside class="card">
           <h2>Acompanhamento</h2>
-          <p id="job-message" class="card-intro">Envie um briefing para começar.</p>
+          <p id="job-message" class="card-intro">Cole um briefing para começar.</p>
           <div id="job-error" class="notice error" hidden></div>
           <div class="steps">
-            <div class="step" data-step="planning"><div class="step-number">1</div><div>Interpretar briefing e copy</div></div>
+            <div class="step" data-step="planning"><div class="step-number">1</div><div>Preparar copy e estrutura</div></div>
             <div class="step" data-step="image"><div class="step-number">2</div><div>Selecionar ou criar fotografia</div></div>
             <div class="step" data-step="design"><div class="step-number">3</div><div>Montar o layout aprovado</div></div>
             <div class="step" data-step="canva"><div class="step-number">4</div><div>Enviar o editável ao Canva</div></div>
           </div>
           <div id="result" class="result" hidden>
-            <div id="template-tag" class="template-tag"></div>
-            <h3>Pronto para revisão</h3>
-            <p class="card-intro">O post está na conta Canva conectada. O designer pode revisar e exportar.</p>
-            <div id="caption" class="caption"></div>
-            <div class="result-actions">
-              <a id="edit-canva" class="button primary" target="_blank" rel="noopener noreferrer">Editar no Canva</a>
-              <button id="copy-caption" class="button ghost" type="button">Copiar legenda</button>
-            </div>
+            <h3>Artes processadas</h3>
+            <p class="card-intro">Abra cada design no Canva para revisar e exportar.</p>
+            <div id="results-list" class="result-list"></div>
           </div>
         </aside>
       </div>
