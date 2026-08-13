@@ -1,16 +1,19 @@
 # ANFATRE Art Agent
 
-Painel de produção de posts da ANFATRE RV. O fluxo atual recebe um briefing, escolhe um dos seis layouts aprovados, monta um PPTX 4:5 com textos editáveis e importa o resultado na conta Canva conectada.
+Painel de produção de posts da ANFATRE RV. A social cola a pauta quinzenal no formato que já usa hoje; o agente separa datas, posts e telas de carrossel, apresenta uma conferência e importa as artes editáveis na conta Canva conectada.
 
 ## Fluxo disponível
 
 1. acesso protegido por uma senha interna;
-2. briefing em linguagem comum;
-3. escolha automática ou manual entre seis layouts oficiais;
-4. planejamento de copy e geração de fotografia pela OpenAI API, quando configurada;
-5. modo de teste com copy direta e fotos aprovadas, quando a IA não está configurada;
-6. montagem do post em Montserrat e importação pela Canva Design Import API;
-7. link direto para revisão no editor do Canva e legenda pronta para copiar.
+2. uma única caixa para colar a pauta completa;
+3. identificação automática de datas, títulos, formatos e marcações `TELA 1`, `TELA 2` etc.;
+4. conferência dos posts encontrados e alertas de inconsistência, como um título que promete cinco itens e detalha apenas quatro;
+5. seleção das artes que devem ser criadas;
+6. planejamento de copy e geração de fotografia pela OpenAI API, quando configurada;
+7. modo de teste com copy direta e fotos aprovadas, quando a IA não está configurada;
+8. montagem em Montserrat e importação pela Canva Design Import API;
+9. um design por data; carrosséis são entregues com todas as páginas no mesmo editável;
+10. links diretos para revisão no Canva e legendas prontas para copiar.
 
 ## Configuração local
 

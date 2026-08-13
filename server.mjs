@@ -4,6 +4,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateDesignPptx, templateNeedsPhoto, TEMPLATE_OPTIONS } from "./lib/generate-design.mjs";
+import { parsePastedBriefing } from "./lib/parse-briefing.mjs";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -168,17 +169,37 @@ function cleanText(value, maxLength) {
   return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+function cleanMultiline(value, maxLength) {
+  return String(value || "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, maxLength);
+}
+
 function normalizeBrief(input) {
+  const slides = (Array.isArray(input.slides) ? input.slides : []).slice(0, 20).map((slide, index) => ({
+    number: Number(slide.number) || index + 1,
+    title: cleanText(slide.title, 180),
+    body: cleanMultiline(slide.body, 2400),
+  })).filter((slide) => slide.title || slide.body);
   const brief = {
-    jobTitle: cleanText(input.jobTitle, 80),
+    date: cleanText(input.date, 20),
+    title: cleanText(input.title, 180),
+    jobTitle: cleanText(input.jobTitle, 220),
     objective: cleanText(input.objective, 50),
     audience: cleanText(input.audience, 120),
-    mainMessage: cleanText(input.mainMessage, 1200),
+    mainMessage: cleanMultiline(input.mainMessage, 20_000),
     cta: cleanText(input.cta, 180),
     visualDirection: cleanText(input.visualDirection, 500),
     templateId: cleanText(input.templateId, 40) || "auto",
     generateImage: input.generateImage !== false,
+    format: cleanText(input.format, 80) || "Timeline Instagram",
+    slides,
   };
+  if (brief.slides.length > 1) brief.templateId = "carousel";
   if (!brief.jobTitle) throw new Error("Informe um nome para este trabalho");
   if (!brief.mainMessage) throw new Error("Descreva a mensagem principal do post");
   if (brief.templateId !== "auto" && !VALID_TEMPLATES.has(brief.templateId)) throw new Error("Modelo de post inválido");
@@ -256,6 +277,7 @@ async function waitForImport(accessToken, initialJob) {
 }
 
 function chooseFallbackTemplate(brief) {
+  if (brief.slides.length > 1) return "carousel";
   if (brief.templateId !== "auto") return brief.templateId;
   const objective = brief.objective.toLowerCase();
   const message = brief.mainMessage.toLowerCase();
@@ -266,19 +288,39 @@ function chooseFallbackTemplate(brief) {
   return "photo-green";
 }
 
+function splitHeadline(value) {
+  const title = cleanText(value, 150);
+  if (!title) return { intro: "CONTEÚDO ANFATRE", highlight: "INFORMAÇÃO QUE FAZ A DIFERENÇA." };
+  const colon = title.indexOf(":");
+  if (colon > 8 && colon < 62) {
+    return {
+      intro: cleanText(title.slice(0, colon), 78),
+      highlight: cleanText(title.slice(colon + 1), 86).toUpperCase(),
+    };
+  }
+  const words = title.split(" ");
+  if (words.length < 6) return { intro: "CONTEÚDO ANFATRE", highlight: title.toUpperCase() };
+  const cut = Math.max(2, Math.ceil(words.length * 0.42));
+  return {
+    intro: cleanText(words.slice(0, cut).join(" "), 78),
+    highlight: cleanText(words.slice(cut).join(" "), 86).toUpperCase(),
+  };
+}
+
 function fallbackPlan(brief) {
   const templateId = chooseFallbackTemplate(brief);
-  const firstSentence = brief.mainMessage.split(/[.!?]/)[0].trim();
+  const headline = splitHeadline(brief.title || brief.slides[0]?.title || brief.jobTitle);
   return {
     templateId,
     jobTitle: brief.jobTitle,
-    intro: cleanText(firstSentence || brief.objective || "Informação que faz a diferença", 78),
-    highlight: cleanText(brief.jobTitle, 54).toUpperCase(),
+    intro: headline.intro,
+    highlight: headline.highlight,
     closing: cleanText(brief.cta || brief.mainMessage, 120),
     caption: cleanText(`${brief.mainMessage}${brief.cta ? `\n\n${brief.cta}` : ""}`, 1200),
     imagePrompt: cleanText(brief.visualDirection || brief.mainMessage, 700),
     rationale: "Composição criada no modo de teste, sem geração de copy por IA.",
     usedAI: false,
+    slides: brief.slides,
   };
 }
 
@@ -307,6 +349,7 @@ async function analyzeBrief(brief) {
         "Não invente dados, leis, números, associados ou certificações. Se o briefing não trouxer um fato, não acrescente.",
         "Escolha somente um modelo permitido. Respeite os limites: intro até 78 caracteres, highlight até 54, closing até 120.",
         "Headlines devem funcionar em caixa alta. O prompt fotográfico não pode pedir textos, marcas ou logotipos dentro da imagem.",
+        "Quando o briefing já trouxer várias TELAS, escolha carousel, preserve todos os fatos fornecidos e use o título da TELA 1 como capa.",
       ].join(" "),
       input: JSON.stringify({ ...brief, allowedTemplates: allowed }),
       text: {
@@ -336,7 +379,7 @@ async function analyzeBrief(brief) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "A IA não conseguiu interpretar o briefing");
   const plan = JSON.parse(extractResponseText(data));
-  if (brief.templateId !== "auto") plan.templateId = brief.templateId;
+  if (brief.templateId !== "auto" || brief.slides.length > 1) plan.templateId = brief.templateId;
   return {
     ...plan,
     jobTitle: brief.jobTitle,
@@ -347,6 +390,7 @@ async function analyzeBrief(brief) {
     imagePrompt: cleanText(plan.imagePrompt, 900),
     rationale: cleanText(plan.rationale, 400),
     usedAI: true,
+    slides: brief.slides,
   };
 }
 
@@ -551,6 +595,13 @@ const server = http.createServer(async (req, res) => {
       jobs.set(id, job);
       setImmediate(() => runJob(job));
       return json(res, 202, publicJob(job));
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/briefings/parse") {
+      if (!requireAuthenticated(req, res)) return;
+      const body = await readJson(req);
+      const rawText = cleanMultiline(body.text, 100_000);
+      return json(res, 200, { items: parsePastedBriefing(rawText) });
     }
 
     if (req.method === "GET" && url.pathname.startsWith("/api/jobs/")) {
