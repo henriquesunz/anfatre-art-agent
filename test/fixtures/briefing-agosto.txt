@@ -28,24 +28,29 @@ TELA2:
 Serra Gaúcha (RS)
 Destino: Gramado e Canela
 Por que ir: Clima europeu, gastronomia incrível e rodovias em ótimas condições.
-Destaque de infraestrutura: Região conta com locais preparados.
-Pontos fortes: Energia 220v, água limpa e boa segurança.
+Destaque de infraestrutura: Região conta com locais preparados como o Gramado MotorPark e o Parque do Sesi (Canela).
+Pontos fortes: Energia 220v, água limpa, descarte adequado, espaço arborizado e boa segurança.
 
 TELA3:
 Litoral Catarinense (SC)
 Destino: Bombinhas / Garopaba
-Por que ir: Praias cristalinas e cultura de caravanismo consolidada.
-Pontos fortes: Plataformas para RVs, chuveiros aquecidos e lavanderia.
+Por que ir: Praias cristalinas e uma das culturas de caravanismo mais consolidadas do Brasil.
+Destaque de infraestrutura: Campings estruturados à beira-mar, como o Camping Paraíso Tropical em Bombinhas.
+Pontos fortes: Plataformas exclusivas para RVs, lava-pratos, chuveiros aquecidos, Wi-Fi e lavanderia.
 
 TELA4:
 Circuito Histórico e de Serras (MG)
 Destino: Tiradentes e Região dos Cânions
-Por que ir: História, gastronomia mineira e cachoeiras.
+Por que ir: História, gastronomia mineira, cachoeiras e rotas tranquilas para dirigir.
+Destaque de infraestrutura: Espaços voltados para acolher trailers e motorhomes próximos aos centros históricos e atrativos naturais.
+Pontos fortes: Pontos de luz, água corrente, ambiente familiar e muita natureza ao redor.
 
 TELA5:
 Porto Seguro & Costa do Descobrimento (BA)
 Destino: Porto Seguro e Prado
 Por que ir: Praias paradisíacas e receptividade calorosa.
+Destaque de infraestrutura: Estrutura referência no Nordeste para RVs (ex: Mundaí Praia Camping).
+Pontos fortes: Estrutura estilo resort com piscina, restaurante no local, energia, água e recepção 24h.
 
 TELA6:
 Qual desses destinos vai ser a sua próxima parada?

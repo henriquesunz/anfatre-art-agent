@@ -66,6 +66,7 @@
     .brief-item input { width:18px; height:18px; margin:2px 0 0; accent-color:var(--green); }
     .brief-date { background:var(--blue); color:#fff; padding:6px 7px; font-size:11px; font-weight:900; text-align:center; }
     .brief-title { font-size:14px; font-weight:800; line-height:1.35; }
+    .brief-subtitle { color:#4f545d; font-size:13px; line-height:1.4; margin-top:3px; }
     .brief-meta { color:var(--muted); font-size:11px; margin-top:5px; }
     .brief-warning { color:#8a5a00; background:#fff3c4; padding:7px 9px; font-size:11px; line-height:1.4; margin-top:8px; }
     .review-actions { display:flex; align-items:center; gap:14px; margin-top:16px; }
@@ -131,7 +132,7 @@
         <div class="hero-copy">
           <div class="eyebrow">Novo trabalho</div>
           <h1>Do briefing<br>ao Canva.</h1>
-          <p>Cole o briefing que já chega para o designer. O agente separa as datas, reconhece posts e carrosséis e prepara tudo para revisão.</p>
+          <p>Cole o briefing do jeito que ele chegou. O agente reconhece títulos, subtítulos, posts e carrosséis e prepara tudo para revisão.</p>
         </div>
         <div class="hero-side">
           <strong id="canva-title">Verificando o Canva…</strong>
@@ -143,11 +144,11 @@
       <div class="grid">
         <section class="card">
           <h2>Cole o briefing</h2>
-          <p class="card-intro">Pode colar a quinzena inteira, do mesmo jeito que ela chega hoje para o designer.</p>
+          <p class="card-intro">Pode colar um post ou a pauta inteira. Data, tamanho e linhas em branco são opcionais.</p>
           <div id="form-notice" class="notice warning" hidden></div>
           <form id="brief-form">
             <label for="rawBrief">Briefing recebido *</label>
-            <textarea id="rawBrief" name="rawBrief" class="brief-paste" maxlength="100000" placeholder="Ex.:&#10;&#10;11/08 -&#10;1. Título: Glossário do Caravanista...&#10;2. Tamanho da Arte: Timeline Instagram&#10;&#10;21/08 -&#10;1. Título:&#10;TELA 1: ...&#10;TELA 2: ..." required></textarea>
+            <textarea id="rawBrief" name="rawBrief" class="brief-paste" maxlength="100000" placeholder="Cole como recebeu. Exemplos aceitos:&#10;&#10;Título: Glossário do Caravanista: entenda os termos técnicos de forma simples&#10;&#10;Título: Qual a importância da Anfatre no seu dia a dia?&#10;&#10;Ou um carrossel:&#10;Título:&#10;TELA 1: Roteiros pelo Brasil: 5 destinos RV Friendly&#10;TELA 2: Serra Gaúcha..." required></textarea>
             <div class="form-actions">
               <button id="interpret-brief" class="button primary" type="submit">Interpretar briefing</button>
               <div class="form-note">Primeiro o agente mostra o que encontrou. Nenhuma arte é criada nesta etapa.</div>
@@ -161,7 +162,7 @@
             <div id="brief-list" class="brief-list"></div>
             <div class="review-actions">
               <button id="create-selected" class="button accent" type="button">Criar selecionados no Canva</button>
-              <div class="form-note">Cada data vira um design. Carrosséis chegam com todas as páginas no mesmo arquivo.</div>
+              <div class="form-note">Cada post selecionado vira um design. Carrosséis chegam com todas as páginas no mesmo arquivo.</div>
             </div>
           </section>
         </section>
@@ -171,7 +172,7 @@
           <p id="job-message" class="card-intro">Cole um briefing para começar.</p>
           <div id="job-error" class="notice error" hidden></div>
           <div class="steps">
-            <div class="step" data-step="planning"><div class="step-number">1</div><div>Preparar copy e estrutura</div></div>
+            <div class="step" data-step="planning"><div class="step-number">1</div><div>Identificar título, subtítulo e modelo</div></div>
             <div class="step" data-step="image"><div class="step-number">2</div><div>Selecionar ou criar fotografia</div></div>
             <div class="step" data-step="design"><div class="step-number">3</div><div>Montar o layout aprovado</div></div>
             <div class="step" data-step="canva"><div class="step-number">4</div><div>Enviar o editável ao Canva</div></div>

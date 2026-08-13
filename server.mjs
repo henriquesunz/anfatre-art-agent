@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateDesignPptx, templateNeedsPhoto, TEMPLATE_OPTIONS } from "./lib/generate-design.mjs";
 import { parsePastedBriefing } from "./lib/parse-briefing.mjs";
+import { exactPlan } from "./lib/plan-copy.mjs";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -182,17 +183,18 @@ function cleanMultiline(value, maxLength) {
 function normalizeBrief(input) {
   const slides = (Array.isArray(input.slides) ? input.slides : []).slice(0, 20).map((slide, index) => ({
     number: Number(slide.number) || index + 1,
-    title: cleanText(slide.title, 180),
+    title: cleanText(slide.title, 1000),
     body: cleanMultiline(slide.body, 2400),
   })).filter((slide) => slide.title || slide.body);
   const brief = {
     date: cleanText(input.date, 20),
-    title: cleanText(input.title, 180),
-    jobTitle: cleanText(input.jobTitle, 220),
+    title: cleanText(input.title, 1000),
+    subtitle: cleanText(input.subtitle, 2000),
+    jobTitle: cleanText(input.jobTitle, 3000),
     objective: cleanText(input.objective, 50),
     audience: cleanText(input.audience, 120),
     mainMessage: cleanMultiline(input.mainMessage, 20_000),
-    cta: cleanText(input.cta, 180),
+    cta: cleanText(input.cta, 1000),
     visualDirection: cleanText(input.visualDirection, 500),
     templateId: cleanText(input.templateId, 40) || "auto",
     generateImage: input.generateImage !== false,
@@ -288,41 +290,13 @@ function chooseFallbackTemplate(brief) {
   return "photo-green";
 }
 
-function splitHeadline(value) {
-  const title = cleanText(value, 150);
-  if (!title) return { intro: "CONTEÚDO ANFATRE", highlight: "INFORMAÇÃO QUE FAZ A DIFERENÇA." };
-  const colon = title.indexOf(":");
-  if (colon > 8 && colon < 62) {
-    return {
-      intro: cleanText(title.slice(0, colon), 78),
-      highlight: cleanText(title.slice(colon + 1), 86).toUpperCase(),
-    };
-  }
-  const words = title.split(" ");
-  if (words.length < 6) return { intro: "CONTEÚDO ANFATRE", highlight: title.toUpperCase() };
-  const cut = Math.max(2, Math.ceil(words.length * 0.42));
-  return {
-    intro: cleanText(words.slice(0, cut).join(" "), 78),
-    highlight: cleanText(words.slice(cut).join(" "), 86).toUpperCase(),
-  };
-}
-
 function fallbackPlan(brief) {
   const templateId = chooseFallbackTemplate(brief);
-  const headline = splitHeadline(brief.title || brief.slides[0]?.title || brief.jobTitle);
-  return {
-    templateId,
-    jobTitle: brief.jobTitle,
-    sourceTitle: brief.title,
-    intro: headline.intro,
-    highlight: headline.highlight,
-    closing: cleanText(brief.cta || brief.mainMessage, 120),
-    caption: cleanText(`${brief.mainMessage}${brief.cta ? `\n\n${brief.cta}` : ""}`, 1200),
+  return exactPlan(brief, templateId, {
     imagePrompt: cleanText(brief.visualDirection || brief.mainMessage, 700),
-    rationale: "Composição criada no modo de teste, sem geração de copy por IA.",
+    rationale: "Composição criada sem reescrever o texto recebido.",
     usedAI: false,
-    slides: brief.slides,
-  };
+  });
 }
 
 function extractResponseText(data) {
@@ -346,14 +320,11 @@ async function analyzeBrief(brief) {
       store: false,
       instructions: [
         "Você é o planejador de conteúdo da ANFATRE RV, associação brasileira do setor de veículos recreativos e rebocáveis.",
-        "Transforme o briefing em texto curto, claro, confiável e em português do Brasil.",
-        "Não invente dados, leis, números, associados ou certificações. Se o briefing não trouxer um fato, não acrescente.",
-        "Escolha somente um modelo permitido. Respeite os limites: intro até 78 caracteres, highlight até 54, closing até 120.",
-        "Intro e highlight precisam se complementar. Nunca repita o título inteiro nos dois campos e não reformule a mesma frase duas vezes.",
-        "Limites seguros por modelo: photo-green/photo-blue/photo-signature: intro até 60 e highlight até 46; question: highlight até 44 e closing até 95; institutional: intro até 34 e highlight até 48; carousel: intro até 46 e highlight até 40.",
-        "Prefira frases curtas que possam ser quebradas em duas linhas. Não insira quebras no meio de palavras.",
-        "Headlines devem funcionar em caixa alta. O prompt fotográfico não pode pedir textos, marcas ou logotipos dentro da imagem.",
-        "Quando o briefing já trouxer várias TELAS, escolha carousel, preserve todos os fatos fornecidos e use o título da TELA 1 como capa.",
+        "Escolha somente um dos modelos permitidos e crie apenas a orientação da fotografia.",
+        "Título, subtítulo, CTA e textos das telas são definitivos: não reescreva, não resuma, não corrija e não acrescente palavras.",
+        "Não invente dados, leis, números, associados ou certificações.",
+        "O prompt fotográfico não pode pedir textos, marcas ou logotipos dentro da imagem.",
+        "Quando o briefing trouxer várias TELAS, escolha carousel.",
       ].join(" "),
       input: JSON.stringify({ ...brief, allowedTemplates: allowed }),
       text: {
@@ -366,14 +337,10 @@ async function analyzeBrief(brief) {
             additionalProperties: false,
             properties: {
               templateId: { type: "string", enum: allowed },
-              intro: { type: "string" },
-              highlight: { type: "string" },
-              closing: { type: "string" },
-              caption: { type: "string" },
               imagePrompt: { type: "string" },
               rationale: { type: "string" },
             },
-            required: ["templateId", "intro", "highlight", "closing", "caption", "imagePrompt", "rationale"],
+            required: ["templateId", "imagePrompt", "rationale"],
           },
         },
       },
@@ -383,20 +350,12 @@ async function analyzeBrief(brief) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message || "A IA não conseguiu interpretar o briefing");
   const plan = JSON.parse(extractResponseText(data));
-  if (brief.templateId !== "auto" || brief.slides.length > 1) plan.templateId = brief.templateId;
-  return {
-    ...plan,
-    jobTitle: brief.jobTitle,
-    sourceTitle: brief.title,
-    intro: cleanText(plan.intro, 78),
-    highlight: cleanText(plan.highlight, 54).toUpperCase(),
-    closing: cleanText(plan.closing, 120),
-    caption: cleanText(plan.caption, 1600),
+  const templateId = brief.templateId !== "auto" || brief.slides.length > 1 ? brief.templateId : plan.templateId;
+  return exactPlan(brief, templateId, {
     imagePrompt: cleanText(plan.imagePrompt, 900),
     rationale: cleanText(plan.rationale, 400),
     usedAI: true,
-    slides: brief.slides,
-  };
+  });
 }
 
 async function generateImage(plan, brief) {
@@ -444,7 +403,7 @@ function publicJob(job) {
 async function runJob(job) {
   try {
     job.status = "planning";
-    job.message = config.openaiApiKey ? "Interpretando o briefing e preparando a copy…" : "Preparando o post no modo de teste…";
+    job.message = config.openaiApiKey ? "Identificando título, subtítulo e melhor modelo…" : "Preparando o post sem alterar o texto…";
     job.plan = await analyzeBrief(job.brief);
 
     if (templateNeedsPhoto(job.plan.templateId)) {
