@@ -7,8 +7,9 @@ const plans = [
     templateId: "photo-blue",
     jobTitle: "11/08 — Glossário do Caravanista: entenda os termos técnicos de forma simples",
     sourceTitle: "Glossário do Caravanista: entenda os termos técnicos de forma simples",
-    intro: "GLOSSÁRIO DO CARAVANISTA: TERMOS TÉCNICOS EXPLICADOS",
-    highlight: "TERMOS TÉCNICOS SIMPLIFICADOS",
+    intro: "Glossário do Caravanista:",
+    highlight: "entenda os termos técnicos de forma simples",
+    copyOrder: "intro-highlight",
     closing: "",
   },
   {
@@ -26,6 +27,24 @@ const plans = [
     intro: "ALUGAR X COMPRAR",
     highlight: "ECONOMIA, ORÇAMENTO E ESTILO DE VIDA",
     closing: "Comente se você costuma alugar ou pretende comprar e por quê. Queremos saber!",
+  },
+  {
+    templateId: "photo-blue",
+    jobTitle: "Viaje com mais conforto",
+    sourceTitle: "Viaje com mais conforto",
+    intro: "A vida em poucos metros quadrados: dicas de organização",
+    highlight: "Viaje com mais conforto",
+    copyOrder: "highlight-intro",
+    closing: "",
+  },
+  {
+    templateId: "photo-signature",
+    jobTitle: "Qual a importância da ANFATRE no seu dia a dia?",
+    sourceTitle: "Qual a importância da ANFATRE no seu dia a dia?",
+    intro: "",
+    highlight: "Qual a importância da ANFATRE no seu dia a dia?",
+    copyOrder: "highlight-only",
+    closing: "",
   },
 ];
 

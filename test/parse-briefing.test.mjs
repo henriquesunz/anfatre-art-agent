@@ -41,6 +41,7 @@ test("separa posts únicos e carrosséis do briefing colado", () => {
   assert.equal(items[0].kind, "single");
   assert.equal(items[0].title, "Glossário do Caravanista:");
   assert.equal(items[0].subtitle, "entenda os termos técnicos de forma simples");
+  assert.equal(items[0].brief.copyOrder, "intro-highlight");
   assert.equal(items[1].kind, "carousel");
   assert.equal(items[1].slideCount, 3);
   assert.equal(items[1].title, "Roteiros pelo Brasil:");
@@ -72,6 +73,7 @@ Subtítulo: O que significa para um fabricante ser associado?`);
   assert.equal(items[1].subtitle, "");
   assert.equal(items[2].title, "Selo Anfatre:");
   assert.equal(items[2].subtitle, "O que significa para um fabricante ser associado?");
+  assert.equal(items[2].brief.copyOrder, "highlight-intro");
 });
 
 test("aceita data e título na mesma linha", () => {

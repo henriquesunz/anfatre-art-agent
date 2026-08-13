@@ -190,6 +190,9 @@ function normalizeBrief(input) {
     date: cleanText(input.date, 20),
     title: cleanText(input.title, 1000),
     subtitle: cleanText(input.subtitle, 2000),
+    copyOrder: ["intro-highlight", "highlight-intro", "highlight-only"].includes(input.copyOrder)
+      ? input.copyOrder
+      : (input.subtitle ? "intro-highlight" : "highlight-only"),
     jobTitle: cleanText(input.jobTitle, 3000),
     objective: cleanText(input.objective, 50),
     audience: cleanText(input.audience, 120),

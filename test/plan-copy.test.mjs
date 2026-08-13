@@ -8,6 +8,7 @@ const brief = {
   cta: "Salve este post!",
   jobTitle: "Glossário do Caravanista: entenda os termos técnicos de forma simples",
   mainMessage: "Glossário do Caravanista:\nentenda os termos técnicos de forma simples",
+  copyOrder: "intro-highlight",
   slides: [],
 };
 
@@ -19,8 +20,12 @@ test("preserva título e subtítulo exatamente como chegaram", () => {
   assert.equal(green.caption, brief.mainMessage);
 
   const blue = exactPlan(brief, "photo-blue");
-  assert.equal(blue.highlight, brief.title);
-  assert.equal(blue.intro, brief.subtitle);
+  assert.equal(blue.intro, brief.title);
+  assert.equal(blue.highlight, brief.subtitle);
+
+  const explicit = exactPlan({ ...brief, copyOrder: "highlight-intro" }, "photo-blue");
+  assert.equal(explicit.highlight, brief.title);
+  assert.equal(explicit.intro, brief.subtitle);
 
   const question = exactPlan(brief, "question");
   assert.equal(question.highlight, brief.title);
