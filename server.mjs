@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { generateDesignPptx, templateNeedsPhoto, TEMPLATE_OPTIONS } from "./lib/generate-design.mjs";
 import { parsePastedBriefing } from "./lib/parse-briefing.mjs";
 import { exactPlan } from "./lib/plan-copy.mjs";
+import { GOOGLE_SCOPES, deliverToGoogleSlides } from "./lib/google-delivery.mjs";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +37,9 @@ const config = {
   clientId: process.env.CANVA_CLIENT_ID || "OC-AZ_x1LKGTx3w",
   clientSecret: process.env.CANVA_CLIENT_SECRET || "",
   redirectUri: process.env.CANVA_REDIRECT_URI || "http://127.0.0.1:3001/api/canva/callback",
+  googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || "http://127.0.0.1:3001/api/google/callback",
   openaiApiKey: process.env.OPENAI_API_KEY || "",
   openaiTextModel: process.env.OPENAI_TEXT_MODEL || "gpt-5-mini",
   openaiImageModel: process.env.OPENAI_IMAGE_MODEL || "gpt-image-2",
@@ -50,6 +54,7 @@ const sessions = new Map();
 const jobs = new Map();
 const loginAttempts = new Map();
 let canvaTokens = null;
+let googleTokens = null;
 
 const SESSION_COOKIE = "anfatre_session";
 const SESSION_MAX_AGE = 60 * 60 * 12;
@@ -239,6 +244,34 @@ async function validAccessToken() {
   return canvaTokens.accessToken;
 }
 
+async function googleTokenRequest(params) {
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: config.googleClientId,
+      client_secret: config.googleClientSecret,
+      ...params,
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error_description || data.error || "Falha ao obter autorização do Google");
+  return data;
+}
+
+async function validGoogleAccessToken() {
+  if (!googleTokens) throw new Error("A conta Google precisa ser conectada");
+  if (Date.now() < googleTokens.expiresAt - 60_000) return googleTokens.accessToken;
+  const refreshed = await googleTokenRequest({ grant_type: "refresh_token", refresh_token: googleTokens.refreshToken });
+  googleTokens = {
+    accessToken: refreshed.access_token,
+    refreshToken: googleTokens.refreshToken,
+    expiresAt: Date.now() + Number(refreshed.expires_in || 3600) * 1000,
+  };
+  return googleTokens.accessToken;
+}
+
 async function startImport(accessToken, bytes, title) {
   const metadata = {
     title_base64: Buffer.from(title, "utf8").toString("base64"),
@@ -328,6 +361,10 @@ async function analyzeBrief(brief) {
         "Não invente dados, leis, números, associados ou certificações.",
         "O prompt fotográfico não pode pedir textos, marcas ou logotipos dentro da imagem.",
         "Quando o briefing trouxer várias TELAS, escolha carousel.",
+        "Para modelos fotográficos (photo-green, photo-blue, photo-signature), defina copyOrder:",
+        "Use 'highlight-intro' quando o TÍTULO for a frase de impacto principal que deve aparecer em amarelo grande no topo do painel (ex: 'A VIDA EM POUCOS METROS QUADRADOS:', 'O INVERNO ESTÁ CHEGANDO:', 'ENERGIA SOLAR EM MOTORHOMES:').",
+        "Use 'intro-highlight' quando o SUBTÍTULO for a chamada mais impactante e o título for contexto/lead (ex: subtítulo='CONTE COM A ANFATRE!', subtítulo='PAREDES DE UM TRAILER?').",
+        "Prefira photo-blue para conteúdos informativos, técnicos ou de alerta. Prefira photo-green para conteúdos institucionais, de benefício ou de engajamento emocional.",
       ].join(" "),
       input: JSON.stringify({ ...brief, allowedTemplates: allowed }),
       text: {
@@ -340,10 +377,11 @@ async function analyzeBrief(brief) {
             additionalProperties: false,
             properties: {
               templateId: { type: "string", enum: allowed },
+              copyOrder: { type: "string", enum: ["highlight-intro", "intro-highlight", "highlight-only"] },
               imagePrompt: { type: "string" },
               rationale: { type: "string" },
             },
-            required: ["templateId", "imagePrompt", "rationale"],
+            required: ["templateId", "copyOrder", "imagePrompt", "rationale"],
           },
         },
       },
@@ -354,7 +392,9 @@ async function analyzeBrief(brief) {
   if (!response.ok) throw new Error(data.error?.message || "A IA não conseguiu interpretar o briefing");
   const plan = JSON.parse(extractResponseText(data));
   const templateId = brief.templateId !== "auto" || brief.slides.length > 1 ? brief.templateId : plan.templateId;
-  return exactPlan(brief, templateId, {
+  // Deixa a IA sobrescrever o copyOrder apenas quando não foi explicitado no briefing.
+  const copyOrderOverride = !brief.copyOrder && plan.copyOrder ? { copyOrder: plan.copyOrder } : {};
+  return exactPlan({ ...brief, ...copyOrderOverride }, templateId, {
     imagePrompt: cleanText(plan.imagePrompt, 900),
     rationale: cleanText(plan.rationale, 400),
     usedAI: true,
@@ -415,6 +455,17 @@ async function runJob(job) {
     }
     const image = await generateImage(job.plan, job.brief);
 
+    if (googleTokens) {
+      job.status = "design";
+      job.message = "Montando o post editável no Google Slides…";
+      const googleAccessToken = await validGoogleAccessToken();
+      const delivered = await deliverToGoogleSlides(googleAccessToken, job.plan, image, `ANFATRE — ${job.brief.jobTitle}`);
+      job.status = "done";
+      job.message = "Post criado e pronto para revisão no Google Slides.";
+      job.result = { ...delivered, destination: "google", caption: job.plan.caption };
+      return;
+    }
+
     job.status = "design";
     job.message = "Montando o layout editável da ANFATRE…";
     const bytes = await generateDesignPptx(job.plan, image);
@@ -433,6 +484,7 @@ async function runJob(job) {
       title: design.title,
       editUrl: design.urls.edit_url,
       viewUrl: design.urls.view_url,
+      destination: "canva",
       caption: job.plan.caption,
     };
   } catch (error) {
@@ -473,6 +525,8 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, {
         configured: Boolean(config.clientId && config.clientSecret),
         connected: Boolean(canvaTokens),
+        googleConfigured: Boolean(config.googleClientId && config.googleClientSecret),
+        googleConnected: Boolean(googleTokens),
         aiConfigured: Boolean(config.openaiApiKey),
         authRequired: Boolean(config.appPassword),
         authenticated: isAuthenticated(req),
@@ -553,9 +607,56 @@ const server = http.createServer(async (req, res) => {
       return redirect(res, "/?connected=1");
     }
 
+    if (req.method === "GET" && url.pathname === "/api/google/connect") {
+      if (!requireAuthenticated(req, res)) return;
+      if (!config.googleClientId || !config.googleClientSecret) {
+        return json(res, 503, { error: "A integração do Google ainda não foi configurada" });
+      }
+      let session = getSession(req);
+      let sessionId = session?.id;
+      if (!session?.data) {
+        sessionId = randomToken(32);
+        sessions.set(sessionId, { authenticated: true, createdAt: Date.now() });
+        session = { id: sessionId, data: sessions.get(sessionId) };
+      }
+      const state = randomToken(48);
+      session.data.googleState = state;
+      const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      authUrl.search = new URLSearchParams({
+        client_id: config.googleClientId,
+        redirect_uri: config.googleRedirectUri,
+        response_type: "code",
+        scope: GOOGLE_SCOPES.join(" "),
+        access_type: "offline",
+        prompt: "consent",
+        state,
+      });
+      return redirect(res, authUrl.toString(), { "Set-Cookie": sessionCookie(sessionId) });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/google/callback") {
+      const session = getSession(req);
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      if (!session?.data || !code || !state || state !== session.data.googleState) return redirect(res, "/?error=oauth_state");
+      const tokenData = await googleTokenRequest({
+        grant_type: "authorization_code",
+        code,
+        redirect_uri: config.googleRedirectUri,
+      });
+      if (!tokenData.refresh_token) return redirect(res, "/?error=google_refresh");
+      googleTokens = {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresAt: Date.now() + Number(tokenData.expires_in || 3600) * 1000,
+      };
+      delete session.data.googleState;
+      return redirect(res, "/?google_connected=1");
+    }
+
     if (req.method === "POST" && url.pathname === "/api/jobs") {
       if (!requireAuthenticated(req, res)) return;
-      if (!canvaTokens) return json(res, 409, { error: "Conecte a conta Canva antes de criar o post" });
+      if (!canvaTokens && !googleTokens) return json(res, 409, { error: "Conecte a conta Google ou Canva antes de criar o post" });
       const brief = normalizeBrief(await readJson(req));
       const id = randomToken(12);
       const job = { id, brief, status: "queued", message: "Briefing recebido.", createdAt: new Date().toISOString() };

@@ -5,6 +5,7 @@ const loginError = document.getElementById("login-error");
 const logoutButton = document.getElementById("logout");
 const headerStatus = document.getElementById("header-status");
 const connectCanva = document.getElementById("connect-canva");
+const connectGoogle = document.getElementById("connect-google");
 const canvaTitle = document.getElementById("canva-title");
 const canvaCopy = document.getElementById("canva-copy");
 const briefForm = document.getElementById("brief-form");
@@ -39,34 +40,51 @@ function statusPill(label, ok, warningLabel) {
   return `<span class="pill ${state}"><span class="dot"></span>${ok ? label : warningLabel}</span>`;
 }
 
+function anyDestinationConnected() {
+  return Boolean(currentStatus?.connected || currentStatus?.googleConnected);
+}
+
+function destinationLabel() {
+  return currentStatus?.googleConnected ? "Google Slides" : "Canva";
+}
+
 function updateCreateButton() {
   const selected = briefList.querySelectorAll('input[type="checkbox"]:checked').length;
-  createSelected.disabled = !currentStatus?.connected || !selected;
-  createSelected.textContent = selected ? `Criar ${selected} ${selected === 1 ? "arte" : "artes"} no Canva` : "Selecione ao menos uma arte";
+  createSelected.disabled = !anyDestinationConnected() || !selected;
+  createSelected.textContent = selected ? `Criar ${selected} ${selected === 1 ? "arte" : "artes"} no ${destinationLabel()}` : "Selecione ao menos uma arte";
 }
 
 function renderStatus(status) {
   currentStatus = status;
   headerStatus.innerHTML = [
+    statusPill("Google Slides conectado", status.googleConnected, "Google desconectado"),
     statusPill("Canva conectado", status.connected, "Canva desconectado"),
     statusPill("IA ativa", status.aiConfigured, "Modo de teste"),
   ].join("");
 
-  if (status.connected) {
+  if (connectGoogle) connectGoogle.hidden = !status.googleConfigured;
+  if (status.googleConnected) {
+    canvaTitle.textContent = "Google Slides conectado";
+    canvaCopy.textContent = "As artes serão criadas como apresentações editáveis no Google Slides da conta autorizada.";
+    if (connectGoogle) {
+      connectGoogle.textContent = "Reconectar Google";
+      connectGoogle.className = "button ghost";
+    }
+  } else if (status.connected) {
     canvaTitle.textContent = "Canva conectado";
-    canvaCopy.textContent = "Os briefings aprovados serão criados na conta autorizada.";
-    connectCanva.textContent = "Reconectar conta";
+    canvaCopy.textContent = "Os briefings aprovados serão criados na conta autorizada. Conecte o Google Slides para usar o novo fluxo com fontes fiéis.";
+    connectCanva.textContent = "Reconectar Canva";
     connectCanva.className = "button ghost";
   } else {
-    canvaTitle.textContent = "Conecte o Canva";
-    canvaCopy.textContent = "Você já pode interpretar o briefing. Para criar as artes, uma pessoa precisa autorizar a conta.";
+    canvaTitle.textContent = "Conecte uma conta";
+    canvaCopy.textContent = "Você já pode interpretar o briefing. Para criar as artes, conecte o Google Slides (recomendado) ou o Canva.";
     connectCanva.textContent = "Conectar Canva";
-    connectCanva.className = "button accent";
+    connectCanva.className = "button ghost";
   }
 
   updateCreateButton();
-  if (!status.connected) {
-    formNotice.textContent = "O Canva está desconectado. Você pode conferir a interpretação do briefing, mas precisará conectar a conta antes de criar as artes.";
+  if (!anyDestinationConnected()) {
+    formNotice.textContent = "Nenhuma conta conectada. Você pode conferir a interpretação do briefing, mas precisará conectar o Google Slides ou o Canva antes de criar as artes.";
     formNotice.hidden = false;
   } else if (!status.aiConfigured) {
     formNotice.textContent = "Modo de teste ativo: o texto do briefing será preservado, mas posts fotográficos usarão imagens de exemplo.";
@@ -232,7 +250,7 @@ function addResult(item, job, error = null) {
     edit.href = job.result.editUrl;
     edit.target = "_blank";
     edit.rel = "noopener noreferrer";
-    edit.textContent = "Editar no Canva";
+    edit.textContent = job.result.destination === "google" ? "Editar no Google Slides" : "Editar no Canva";
     const copy = document.createElement("button");
     copy.className = "button ghost";
     copy.type = "button";
@@ -253,7 +271,7 @@ function addResult(item, job, error = null) {
 }
 
 createSelected.addEventListener("click", async () => {
-  if (!currentStatus?.connected) return;
+  if (!anyDestinationConnected()) return;
   const selectedIds = new Set([...briefList.querySelectorAll('input[type="checkbox"]:checked')].map((input) => input.dataset.itemId));
   const selected = parsedItems.filter((item) => selectedIds.has(item.id));
   if (!selected.length) return;
@@ -288,7 +306,7 @@ createSelected.addEventListener("click", async () => {
 });
 
 const query = new URLSearchParams(location.search);
-if (query.has("connected") || query.has("error")) history.replaceState({}, "", "/");
+if (query.has("connected") || query.has("google_connected") || query.has("error")) history.replaceState({}, "", "/");
 
 refreshStatus().catch((error) => {
   loginView.hidden = true;

@@ -46,6 +46,24 @@ Devem ser adicionadas manualmente em **Environment**:
 - `CANVA_REDIRECT_URI=https://anfatre-art-agent.onrender.com/api/canva/callback`
 - `AGENT_ACCESS_PASSWORD`
 - `OPENAI_API_KEY` — opcional enquanto o modo de teste estiver sendo validado
+- `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET` — habilitam a entrega no Google Slides (recomendado: fontes 100% fiéis)
+- `GOOGLE_REDIRECT_URI=https://anfatre-art-agent.onrender.com/api/google/callback`
+
+## Entrega no Google Slides
+
+Quando uma conta Google está conectada, as artes são criadas direto como apresentações
+editáveis no Google Slides (página 4:5, 720×900 pt), com Montserrat/Montserrat ExtraBold
+nativos — sem conversão de arquivo, eliminando as discrepâncias de fonte do import no Canva.
+O Canva continua funcionando como destino alternativo quando o Google não está conectado.
+
+Configuração no Google Cloud Console (<https://console.cloud.google.com>):
+
+1. Crie um projeto e ative as APIs **Google Slides API** e **Google Drive API**.
+2. Em *APIs & Services → OAuth consent screen*, configure o app (tipo External, modo de teste
+   é suficiente; adicione o e-mail da conta que será conectada como test user).
+3. Em *Credentials → Create credentials → OAuth client ID* (tipo Web application), cadastre
+   os redirect URIs local e de produção listados acima.
+4. Copie o Client ID e o Client Secret para as variáveis de ambiente.
 
 Depois de alterar variáveis, faça um novo deploy. A URL de produção também precisa estar cadastrada como redirect URL padrão no Canva Developers.
 
