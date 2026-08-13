@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check": "node --check server.mjs && node --check lib/generate-design.mjs",
     "dev": "node server.mjs",
     "start": "node server.mjs"
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "pptxgenjs": "^4.0.1"
   }
 }

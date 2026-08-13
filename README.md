@@ -1,23 +1,50 @@
-# ANFATRE Art Agent — prova da importação Canva
+# ANFATRE Art Agent
 
-Este protótipo valida o caminho mais importante do produto:
+Painel de produção de posts da ANFATRE RV. O fluxo atual recebe um briefing, escolhe um dos seis layouts aprovados, monta um PPTX 4:5 com textos editáveis e importa o resultado na conta Canva conectada.
 
-1. conectar uma conta Canva por OAuth 2.0 + PKCE;
-2. enviar um PPTX editável da ANFATRE pela Design Import API;
-3. receber o link `Editar no Canva`.
+## Fluxo disponível
 
-O projeto antigo na raiz não é alterado.
+1. acesso protegido por uma senha interna;
+2. briefing em linguagem comum;
+3. escolha automática ou manual entre seis layouts oficiais;
+4. planejamento de copy e geração de fotografia pela OpenAI API, quando configurada;
+5. modo de teste com copy direta e fotos aprovadas, quando a IA não está configurada;
+6. montagem do post em Montserrat e importação pela Canva Design Import API;
+7. link direto para revisão no editor do Canva e legenda pronta para copiar.
 
-## Configuração
+## Configuração local
 
 1. Copie `.env.example` para `.env.local`.
-2. Preencha `CANVA_CLIENT_SECRET` localmente. Nunca envie esse valor por chat nem faça commit do arquivo.
-3. Confirme no Canva Developers que a redirect URL é exatamente:
+2. Preencha `CANVA_CLIENT_SECRET`. Nunca envie esse valor por chat nem faça commit do arquivo.
+3. Cadastre no Canva Developers:
 
    `http://127.0.0.1:3001/api/canva/callback`
 
-4. Execute `npm run dev`.
-5. Abra `http://127.0.0.1:3001`.
+4. Opcionalmente preencha:
+   - `AGENT_ACCESS_PASSWORD`: senha compartilhada de acesso ao painel;
+   - `OPENAI_API_KEY`: habilita planejamento de copy e geração de fotografia;
+   - `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL` e `OPENAI_IMAGE_QUALITY`: permitem trocar os modelos sem alterar o código.
+5. Execute `npm install` e `npm run dev`.
+6. Abra `http://127.0.0.1:3001`.
+
+## Variáveis no Render
+
+Já configuradas pelo `render.yaml`:
+
+- `NODE_VERSION`
+- `NODE_ENV`
+- `APP_HOST`
+- `COOKIE_SECURE`
+- `CANVA_CLIENT_ID`
+
+Devem ser adicionadas manualmente em **Environment**:
+
+- `CANVA_CLIENT_SECRET`
+- `CANVA_REDIRECT_URI=https://anfatre-art-agent.onrender.com/api/canva/callback`
+- `AGENT_ACCESS_PASSWORD`
+- `OPENAI_API_KEY` — opcional enquanto o modo de teste estiver sendo validado
+
+Depois de alterar variáveis, faça um novo deploy. A URL de produção também precisa estar cadastrada como redirect URL padrão no Canva Developers.
 
 ## Escopos Canva
 
@@ -25,26 +52,16 @@ O projeto antigo na raiz não é alterado.
 - `design:meta:read`
 - `profile:read`
 
-## Segurança do protótipo
+## Segurança e limitações desta fase
 
-- Client Secret e tokens ficam somente no backend.
-- Tokens permanecem apenas em memória e somem ao reiniciar o servidor.
-- O protótipo escuta apenas em `127.0.0.1`.
-- O cookie de sessão é `HttpOnly` e `SameSite=Lax`.
+- Chaves, Client Secret e tokens ficam somente no backend.
+- O cookie de acesso é `HttpOnly`, `SameSite=Lax` e `Secure` em produção.
+- O agente não aceita upload de imagens nesta fase; isso evita que formatos não confiáveis sejam processados no servidor.
+- A conexão compartilhada do Canva e o histórico dos trabalhos ainda ficam em memória. Eles somem quando o Render reinicia ou adormece.
+- O plano gratuito do Render é indicado para homologação, não para a operação diária definitiva.
 
-Antes de produção serão necessários banco, criptografia de refresh tokens, autenticação dos funcionários, logs e revisão da integração pelo Canva.
+Próxima etapa de robustez: banco de dados, refresh token criptografado, usuários individuais, histórico persistente e fila de geração durável.
 
-## Publicação de teste no Render
+## Referência da integração de imagens
 
-O projeto inclui `render.yaml` e está preparado para receber a porta dinâmica da plataforma.
-
-1. Publique esta pasta em um repositório privado.
-2. No Render, crie um Web Service ou Blueprint a partir do repositório.
-3. Aguarde o primeiro deploy e copie o endereço `https://<servico>.onrender.com`.
-4. Configure no Render, em Environment:
-   - `CANVA_CLIENT_SECRET`: o Client Secret da integração;
-   - `CANVA_REDIRECT_URI`: `https://<servico>.onrender.com/api/canva/callback`.
-5. Cadastre exatamente a mesma URL em Authentication no Canva Developers.
-6. Faça um novo deploy e teste o OAuth.
-
-O plano gratuito é adequado apenas para homologação: ele pode adormecer por inatividade e os tokens atuais ficam somente em memória. Antes do uso diário pelo time, adicione persistência segura e use uma instância que permaneça ativa.
+A geração segue a documentação oficial da OpenAI para a Image API: <https://developers.openai.com/api/docs/guides/image-generation>.
