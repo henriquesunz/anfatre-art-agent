@@ -313,6 +313,7 @@ function fallbackPlan(brief) {
   return {
     templateId,
     jobTitle: brief.jobTitle,
+    sourceTitle: brief.title,
     intro: headline.intro,
     highlight: headline.highlight,
     closing: cleanText(brief.cta || brief.mainMessage, 120),
@@ -348,6 +349,9 @@ async function analyzeBrief(brief) {
         "Transforme o briefing em texto curto, claro, confiável e em português do Brasil.",
         "Não invente dados, leis, números, associados ou certificações. Se o briefing não trouxer um fato, não acrescente.",
         "Escolha somente um modelo permitido. Respeite os limites: intro até 78 caracteres, highlight até 54, closing até 120.",
+        "Intro e highlight precisam se complementar. Nunca repita o título inteiro nos dois campos e não reformule a mesma frase duas vezes.",
+        "Limites seguros por modelo: photo-green/photo-blue/photo-signature: intro até 60 e highlight até 46; question: highlight até 44 e closing até 95; institutional: intro até 34 e highlight até 48; carousel: intro até 46 e highlight até 40.",
+        "Prefira frases curtas que possam ser quebradas em duas linhas. Não insira quebras no meio de palavras.",
         "Headlines devem funcionar em caixa alta. O prompt fotográfico não pode pedir textos, marcas ou logotipos dentro da imagem.",
         "Quando o briefing já trouxer várias TELAS, escolha carousel, preserve todos os fatos fornecidos e use o título da TELA 1 como capa.",
       ].join(" "),
@@ -383,6 +387,7 @@ async function analyzeBrief(brief) {
   return {
     ...plan,
     jobTitle: brief.jobTitle,
+    sourceTitle: brief.title,
     intro: cleanText(plan.intro, 78),
     highlight: cleanText(plan.highlight, 54).toUpperCase(),
     closing: cleanText(plan.closing, 120),
