@@ -377,10 +377,10 @@ async function generateImage(plan, brief) {
     body: JSON.stringify({
       model: config.openaiImageModel,
       prompt,
-      n: 1,
       size: "1024x1536",
       quality: config.openaiImageQuality,
-      response_format: "b64_json",
+      output_format: "jpeg",
+      output_compression: 86,
     }),
     signal: AbortSignal.timeout(180_000),
   });
