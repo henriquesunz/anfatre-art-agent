@@ -69,7 +69,7 @@ function renderStatus(status) {
     formNotice.textContent = "O Canva está desconectado. Você pode conferir a interpretação do briefing, mas precisará conectar a conta antes de criar as artes.";
     formNotice.hidden = false;
   } else if (!status.aiConfigured) {
-    formNotice.textContent = "Modo de teste ativo: o briefing e os carrosséis funcionam, mas posts que vierem apenas com título ainda usam textos e fotografias de teste.";
+    formNotice.textContent = "Modo de teste ativo: o texto do briefing será preservado, mas posts fotográficos usarão imagens de exemplo.";
     formNotice.hidden = false;
   } else {
     formNotice.hidden = true;
@@ -121,7 +121,7 @@ logoutButton.addEventListener("click", async () => {
 function renderBriefItems(items) {
   parsedItems = items;
   briefList.replaceChildren();
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     const row = document.createElement("div");
     row.className = "brief-item";
 
@@ -134,18 +134,22 @@ function renderBriefItems(items) {
 
     const date = document.createElement("div");
     date.className = "brief-date";
-    date.textContent = item.date;
+    date.textContent = item.date || `POST ${index + 1}`;
 
     const copy = document.createElement("div");
     const title = document.createElement("div");
     title.className = "brief-title";
     title.textContent = item.title;
+    const subtitle = document.createElement("div");
+    subtitle.className = "brief-subtitle";
+    subtitle.textContent = item.subtitle || "";
+    subtitle.hidden = !item.subtitle;
     const meta = document.createElement("div");
     meta.className = "brief-meta";
     meta.textContent = item.kind === "carousel"
       ? `Carrossel · ${item.slideCount} telas · ${item.format}`
       : `Post único · ${item.format}`;
-    copy.append(title, meta);
+    copy.append(title, subtitle, meta);
     for (const message of item.warnings || []) {
       const warning = document.createElement("div");
       warning.className = "brief-warning";
@@ -169,7 +173,7 @@ briefForm.addEventListener("submit", async (event) => {
   briefReview.hidden = true;
   jobError.hidden = true;
   result.hidden = true;
-  jobMessage.textContent = "Lendo datas, títulos e telas…";
+  jobMessage.textContent = "Identificando títulos, subtítulos e telas…";
   try {
     const data = await api("/api/briefings/parse", {
       method: "POST",
@@ -215,7 +219,7 @@ function addResult(item, job, error = null) {
   const card = document.createElement("div");
   card.className = `result-item${error ? " error" : ""}`;
   const title = document.createElement("strong");
-  title.textContent = `${item.date} — ${item.title}`;
+  title.textContent = [item.date, item.title, item.subtitle].filter(Boolean).join(" — ");
   const detail = document.createElement("p");
   detail.textContent = error ? error.message : `${item.slideCount} ${item.slideCount === 1 ? "página editável" : "páginas editáveis"} criadas.`;
   card.append(title, detail);

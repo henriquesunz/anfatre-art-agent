@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check server.mjs && node --check lib/generate-design.mjs && node --check lib/parse-briefing.mjs && node --test",
+    "check": "node --check server.mjs && node --check lib/generate-design.mjs && node --check lib/parse-briefing.mjs && node --check lib/plan-copy.mjs && node --test",
     "dev": "node server.mjs",
     "start": "node server.mjs"
   },

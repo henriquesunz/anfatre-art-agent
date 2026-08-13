@@ -39,16 +39,46 @@ test("separa posts únicos e carrosséis do briefing colado", () => {
   assert.equal(items.length, 2);
   assert.equal(items[0].date, "11/08");
   assert.equal(items[0].kind, "single");
-  assert.match(items[0].title, /Glossário do Caravanista/);
+  assert.equal(items[0].title, "Glossário do Caravanista:");
+  assert.equal(items[0].subtitle, "entenda os termos técnicos de forma simples");
   assert.equal(items[1].kind, "carousel");
   assert.equal(items[1].slideCount, 3);
+  assert.equal(items[1].title, "Roteiros pelo Brasil:");
+  assert.equal(items[1].subtitle, "5 Destinos RV Friendly para Viajar de Motorhome");
   assert.equal(items[1].slides[1].title, "Serra Gaúcha (RS)");
   assert.match(items[1].brief.cta, /Comente/);
   assert.equal(items[1].format, "Timeline Instagram");
 });
 
-test("explica quando não encontra datas", () => {
-  assert.throws(() => parsePastedBriefing("um título sem data"), /Não encontrei datas/);
+test("aceita um título sem data e sem formatação obrigatória", () => {
+  const [item] = parsePastedBriefing("Glossário do Caravanista: entenda os termos técnicos de forma simples");
+  assert.equal(item.date, "");
+  assert.equal(item.title, "Glossário do Caravanista:");
+  assert.equal(item.subtitle, "entenda os termos técnicos de forma simples");
+  assert.equal(item.brief.jobTitle, "Glossário do Caravanista: entenda os termos técnicos de forma simples");
+});
+
+test("separa vários campos Título sem exigir data nem linha em branco", () => {
+  const items = parsePastedBriefing(`Título: Glossário do Caravanista: entenda os termos técnicos de forma simples
+Título: Qual a importância da Anfatre no seu dia a dia?
+Título: Selo Anfatre:
+Subtítulo: O que significa para um fabricante ser associado?`);
+
+  assert.equal(items.length, 3);
+  assert.deepEqual(items.map((item) => item.date), ["", "", ""]);
+  assert.equal(items[0].title, "Glossário do Caravanista:");
+  assert.equal(items[0].subtitle, "entenda os termos técnicos de forma simples");
+  assert.equal(items[1].title, "Qual a importância da Anfatre no seu dia a dia?");
+  assert.equal(items[1].subtitle, "");
+  assert.equal(items[2].title, "Selo Anfatre:");
+  assert.equal(items[2].subtitle, "O que significa para um fabricante ser associado?");
+});
+
+test("aceita data e título na mesma linha", () => {
+  const items = parsePastedBriefing(`11/08 - Título: Glossário do Caravanista: entenda os termos técnicos de forma simples
+12/08 - Título: Qual a importância da Anfatre no seu dia a dia?`);
+  assert.deepEqual(items.map((item) => item.date), ["11/08", "12/08"]);
+  assert.equal(items[1].title, "Qual a importância da Anfatre no seu dia a dia?");
 });
 
 test("interpreta a pauta quinzenal de agosto em seis artes", () => {

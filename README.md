@@ -1,18 +1,18 @@
 # ANFATRE Art Agent
 
-Painel de produção de posts da ANFATRE RV. A social cola a pauta quinzenal no formato que já usa hoje; o agente separa datas, posts e telas de carrossel, apresenta uma conferência e importa as artes editáveis na conta Canva conectada.
+Painel de produção de posts da ANFATRE RV. A social cola um post ou a pauta inteira no formato que já usa hoje; o agente separa os conteúdos, apresenta uma conferência e importa as artes editáveis na conta Canva conectada.
 
 ## Fluxo disponível
 
 1. acesso protegido por uma senha interna;
 2. uma única caixa para colar a pauta completa;
-3. identificação automática de datas, títulos, formatos e marcações `TELA 1`, `TELA 2` etc.;
+3. identificação automática de título, subtítulo, data opcional, formato e marcações `TELA 1`, `TELA 2` etc.;
 4. conferência dos posts encontrados e alertas de inconsistência, como um título que promete cinco itens e detalha apenas quatro;
 5. seleção das artes que devem ser criadas;
-6. planejamento de copy e geração de fotografia pela OpenAI API, quando configurada;
-7. modo de teste com copy direta e fotos aprovadas, quando a IA não está configurada;
+6. escolha inteligente do modelo e geração de fotografia pela OpenAI API, sem reescrever a copy recebida;
+7. modo de teste com o mesmo texto original e fotos aprovadas, quando a IA não está configurada;
 8. montagem em Montserrat e importação pela Canva Design Import API;
-9. um design por data; carrosséis são entregues com todas as páginas no mesmo editável;
+9. um design por post selecionado; carrosséis são entregues com todas as páginas no mesmo editável;
 10. links diretos para revisão no Canva e legendas prontas para copiar.
 
 ## Configuração local
@@ -25,7 +25,7 @@ Painel de produção de posts da ANFATRE RV. A social cola a pauta quinzenal no 
 
 4. Opcionalmente preencha:
    - `AGENT_ACCESS_PASSWORD`: senha compartilhada de acesso ao painel;
-   - `OPENAI_API_KEY`: habilita planejamento de copy e geração de fotografia;
+   - `OPENAI_API_KEY`: habilita escolha inteligente do modelo e geração de fotografia;
    - `OPENAI_TEXT_MODEL`, `OPENAI_IMAGE_MODEL` e `OPENAI_IMAGE_QUALITY`: permitem trocar os modelos sem alterar o código.
 5. Execute `npm install` e `npm run dev`.
 6. Abra `http://127.0.0.1:3001`.
