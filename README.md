@@ -21,6 +21,24 @@ aprovadas, mantém somente esse slide, preenche os marcadores editáveis e troca
 fotografia com corte `cover` quando uma nova imagem é gerada. Carrosséis com
 páginas internas continuam usando o construtor atual; o mestre fornece a capa.
 
+## Encaixe do texto
+
+O servidor não tem a Montserrat instalada, então `lib/montserrat-metrics.mjs`
+carrega as larguras reais de cada glifo (extraídas das tabelas `hmtx`/`hhea` dos
+arquivos Regular, Bold e ExtraBold). Todo o encaixe de texto sai dessas medidas:
+
+- a variação do mestre é escolhida medindo o texto nas caixas reais, e vence a
+  primeira em que ele cabe inteiro sem reduzir a fonte;
+- a quebra de linha é decidida aqui e gravada explicitamente (`<a:br/>` no PPTX,
+  `\n` no Slides), em vez de ficar a cargo de quem abre o arquivo;
+- a altura da caixa é recalculada e o bloco é recentralizado no painel colorido,
+  o que dispensa o `spAutoFit` do mestre — ele vira `<a:noAutofit/>`;
+- quando nenhuma variação comporta a copy, o corpo é reduzido até 62% do
+  desenhado antes de qualquer texto vazar.
+
+Isso vale para as três entregas (PPTX do mestre, Google Slides e a cópia do deck
+mestre no Drive), de modo que as três produzem a mesma arte.
+
 ## Configuração local
 
 1. Copie `.env.example` para `.env.local`.
