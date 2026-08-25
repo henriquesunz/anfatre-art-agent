@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { generateDesignPptx, templateNeedsPhoto, TEMPLATE_OPTIONS } from "./lib/generate-design.mjs";
 import { parsePastedBriefing } from "./lib/parse-briefing.mjs";
 import { exactPlan } from "./lib/plan-copy.mjs";
-import { GOOGLE_SCOPES, deliverToGoogleSlides } from "./lib/google-delivery.mjs";
+import { GOOGLE_SCOPES, deliverBatchToGoogleSlides } from "./lib/google-delivery.mjs";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -437,60 +437,108 @@ function publicJob(job) {
     status: job.status,
     message: job.message,
     createdAt: job.createdAt,
-    plan: job.plan || null,
+    total: job.briefs.length,
+    plans: job.plans || [],
     result: job.result || null,
     error: job.error || null,
   };
 }
 
+/** Nome do arquivo entregue: o do post quando é um só, um resumo quando é lote. */
+function jobTitle(job) {
+  if (job.briefs.length === 1) return `ANFATRE — ${job.briefs[0].jobTitle}`;
+  const dates = [...new Set(job.briefs.map((brief) => brief.date).filter(Boolean))];
+  const suffix = dates.length === 1 ? ` · ${dates[0]}` : "";
+  return `ANFATRE — ${job.briefs.length} artes${suffix}`;
+}
+
+function postSummary(plan) {
+  return {
+    title: plan.jobTitle || plan.sourceTitle || plan.highlight || plan.intro,
+    caption: plan.caption,
+    slideCount: Math.max(1, plan.slides?.length || 1),
+  };
+}
+
 async function runJob(job) {
+  const total = job.briefs.length;
+  const many = total > 1;
   try {
     job.status = "planning";
-    job.message = config.openaiApiKey ? "Identificando título, subtítulo e melhor modelo…" : "Preparando o post sem alterar o texto…";
-    job.plan = await analyzeBrief(job.brief);
+    job.message = many
+      ? `Identificando título, subtítulo e modelo dos ${total} posts…`
+      : (config.openaiApiKey ? "Identificando título, subtítulo e melhor modelo…" : "Preparando o post sem alterar o texto…");
+    job.plans = [];
+    for (const brief of job.briefs) job.plans.push(await analyzeBrief(brief));
 
-    if (templateNeedsPhoto(job.plan.templateId)) {
-      job.status = "image";
-      job.message = config.openaiApiKey && job.brief.generateImage ? "Criando a fotografia do post…" : "Selecionando a fotografia de teste…";
+    const entries = [];
+    for (const [index, plan] of job.plans.entries()) {
+      const brief = job.briefs[index];
+      if (templateNeedsPhoto(plan.templateId)) {
+        job.status = "image";
+        job.message = many
+          ? `Preparando a fotografia ${index + 1} de ${total}…`
+          : (config.openaiApiKey && brief.generateImage ? "Criando a fotografia do post…" : "Selecionando a fotografia de teste…");
+      }
+      entries.push({ plan, image: await generateImage(plan, brief) });
     }
-    const image = await generateImage(job.plan, job.brief);
+
+    const title = jobTitle(job);
 
     if (googleTokens) {
       job.status = "design";
-      job.message = "Montando o post editável no Google Slides…";
+      job.message = many
+        ? `Montando as ${total} artes no mesmo arquivo do Google Slides…`
+        : "Montando o post editável no Google Slides…";
       const googleAccessToken = await validGoogleAccessToken();
-      const delivered = await deliverToGoogleSlides(googleAccessToken, job.plan, image, `ANFATRE — ${job.brief.jobTitle}`);
+      const delivered = await deliverBatchToGoogleSlides(googleAccessToken, entries, title);
       job.status = "done";
-      job.message = "Post criado e pronto para revisão no Google Slides.";
-      job.result = { ...delivered, destination: "google", caption: job.plan.caption };
+      job.message = many
+        ? `${total} artes criadas no mesmo arquivo, prontas para revisão.`
+        : "Post criado e pronto para revisão no Google Slides.";
+      job.result = {
+        destination: "google",
+        grouped: many,
+        files: [{
+          title: delivered.title,
+          editUrl: delivered.editUrl,
+          viewUrl: delivered.viewUrl,
+          posts: delivered.posts || job.plans.map(postSummary),
+        }],
+      };
       return;
     }
 
-    job.status = "design";
-    job.message = "Montando o layout editável da ANFATRE…";
-    const bytes = await generateDesignPptx(job.plan, image);
-
-    job.status = "canva";
-    job.message = "Enviando o post para o Canva…";
+    // O Canva ainda entrega um arquivo por post: o agrupamento foi feito só no
+    // Google Slides, que é o destino principal.
     const accessToken = await validAccessToken();
-    const imported = await waitForImport(accessToken, await startImport(accessToken, bytes, `ANFATRE — ${job.brief.jobTitle}`));
-    const design = imported.result?.designs?.[0];
-    if (!design?.urls?.edit_url) throw new Error("O Canva importou o post, mas não devolveu o link de edição");
+    const files = [];
+    for (const [index, entry] of entries.entries()) {
+      job.status = "design";
+      job.message = many ? `Montando o layout ${index + 1} de ${total}…` : "Montando o layout editável da ANFATRE…";
+      const bytes = await generateDesignPptx(entry.plan, entry.image);
+
+      job.status = "canva";
+      job.message = many ? `Enviando a arte ${index + 1} de ${total} para o Canva…` : "Enviando o post para o Canva…";
+      const postTitle = `ANFATRE — ${job.briefs[index].jobTitle}`;
+      const imported = await waitForImport(accessToken, await startImport(accessToken, bytes, postTitle));
+      const design = imported.result?.designs?.[0];
+      if (!design?.urls?.edit_url) throw new Error("O Canva importou o post, mas não devolveu o link de edição");
+      files.push({
+        title: design.title,
+        editUrl: design.urls.edit_url,
+        viewUrl: design.urls.view_url,
+        posts: [postSummary(entry.plan)],
+      });
+    }
 
     job.status = "done";
-    job.message = "Post criado e pronto para revisão no Canva.";
-    job.result = {
-      designId: design.id,
-      title: design.title,
-      editUrl: design.urls.edit_url,
-      viewUrl: design.urls.view_url,
-      destination: "canva",
-      caption: job.plan.caption,
-    };
+    job.message = many ? `${total} artes criadas no Canva.` : "Post criado e pronto para revisão no Canva.";
+    job.result = { destination: "canva", grouped: false, files };
   } catch (error) {
     console.error("Falha no trabalho", job.id, error);
     job.status = "failed";
-    job.message = "Não foi possível concluir este post.";
+    job.message = many ? "Não foi possível concluir estes posts." : "Não foi possível concluir este post.";
     job.error = error.message || "Erro interno";
   }
 }
@@ -657,9 +705,14 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/jobs") {
       if (!requireAuthenticated(req, res)) return;
       if (!canvaTokens && !googleTokens) return json(res, 409, { error: "Conecte a conta Google ou Canva antes de criar o post" });
-      const brief = normalizeBrief(await readJson(req));
+      const body = await readJson(req);
+      // Aceita um post solto (formato antigo) ou a lista selecionada na conferência.
+      const rawPosts = Array.isArray(body.posts) ? body.posts : [body];
+      if (!rawPosts.length) return json(res, 400, { error: "Selecione ao menos um post" });
+      if (rawPosts.length > 20) return json(res, 400, { error: "São no máximo 20 posts por arquivo" });
+      const briefs = rawPosts.map(normalizeBrief);
       const id = randomToken(12);
-      const job = { id, brief, status: "queued", message: "Briefing recebido.", createdAt: new Date().toISOString() };
+      const job = { id, briefs, status: "queued", message: "Briefing recebido.", createdAt: new Date().toISOString() };
       jobs.set(id, job);
       setImmediate(() => runJob(job));
       return json(res, 202, publicJob(job));
