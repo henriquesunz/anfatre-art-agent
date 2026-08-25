@@ -21,6 +21,22 @@ aprovadas, mantém somente esse slide, preenche os marcadores editáveis e troca
 fotografia com corte `cover` quando uma nova imagem é gerada. Carrosséis com
 páginas internas continuam usando o construtor atual; o mestre fornece a capa.
 
+## Escolha do modelo e artes agrupadas
+
+Na conferência do briefing cada post tem um seletor de modelo. O padrão é **O agente
+escolhe**; qualquer outra opção passa por cima da decisão automática. Carrosséis com
+várias TELAS ficam travados em `carousel`, porque o modelo vem do próprio briefing.
+
+Ao criar, os posts selecionados viram **um único arquivo no Google Slides**, um bloco
+de slides por post, na ordem em que aparecem na conferência — um carrossel contribui
+com todas as suas telas. As capas fotográficas nascem de duplicatas dos slides
+aprovados do mestre (`duplicateObject` com ids previsíveis); os demais layouts são
+desenhados do zero na mesma apresentação. No fim os slides originais do mestre são
+apagados e a ordem é reaplicada.
+
+O Canva ainda entrega **um arquivo por post**: o agrupamento foi feito só no Google
+Slides, que é o destino principal. O botão de criar diz qual dos dois vai acontecer.
+
 ## Encaixe do texto
 
 O servidor não tem a Montserrat instalada, então `lib/montserrat-metrics.mjs`

@@ -51,7 +51,16 @@ function destinationLabel() {
 function updateCreateButton() {
   const selected = briefList.querySelectorAll('input[type="checkbox"]:checked').length;
   createSelected.disabled = !anyDestinationConnected() || !selected;
-  createSelected.textContent = selected ? `Criar ${selected} ${selected === 1 ? "arte" : "artes"} no ${destinationLabel()}` : "Selecione ao menos uma arte";
+  if (!selected) {
+    createSelected.textContent = "Selecione ao menos uma arte";
+    return;
+  }
+  // Deixa explícito no botão o que vai sair: no Google as artes vão para o mesmo
+  // arquivo; no Canva cada post ainda vira um arquivo próprio.
+  const grouping = selected === 1
+    ? ""
+    : (currentStatus?.googleConnected ? " · no mesmo arquivo" : " · um arquivo cada");
+  createSelected.textContent = `Criar ${selected} ${selected === 1 ? "arte" : "artes"} no ${destinationLabel()}${grouping}`;
 }
 
 function renderStatus(status) {
@@ -136,6 +145,45 @@ logoutButton.addEventListener("click", async () => {
   await refreshStatus();
 });
 
+// Modelo escolhido por post. Fica com o item para sobreviver a uma nova
+// interpretação do briefing sem perder o que já foi ajustado na tela.
+function templateField(item, index) {
+  const wrap = document.createElement("div");
+  wrap.className = "brief-template";
+
+  const id = `template-${index}`;
+  const label = document.createElement("label");
+  label.textContent = "Modelo";
+  label.htmlFor = id;
+
+  const select = document.createElement("select");
+  select.id = id;
+  select.dataset.itemId = item.id;
+  for (const option of currentStatus?.templates || []) {
+    const node = document.createElement("option");
+    node.value = option.id;
+    node.textContent = option.label;
+    select.appendChild(node);
+  }
+  select.value = item.templateId || item.brief?.templateId || "auto";
+
+  // Carrossel com várias telas não tem escolha: o modelo vem do próprio briefing.
+  if (item.kind === "carousel") {
+    select.value = "carousel";
+    select.disabled = true;
+    const note = document.createElement("span");
+    note.className = "brief-meta";
+    note.textContent = "definido pelas TELAS do briefing";
+    wrap.append(label, select, note);
+  } else {
+    wrap.append(label, select);
+  }
+
+  select.addEventListener("change", () => { item.templateId = select.value; });
+  item.templateId = select.value;
+  return wrap;
+}
+
 function renderBriefItems(items) {
   parsedItems = items;
   briefList.replaceChildren();
@@ -167,7 +215,7 @@ function renderBriefItems(items) {
     meta.textContent = item.kind === "carousel"
       ? `Carrossel · ${item.slideCount} telas · ${item.format}`
       : `Post único · ${item.format}`;
-    copy.append(title, subtitle, meta);
+    copy.append(title, subtitle, meta, templateField(item, index));
     for (const message of item.warnings || []) {
       const warning = document.createElement("div");
       warning.className = "brief-warning";
@@ -210,8 +258,8 @@ briefForm.addEventListener("submit", async (event) => {
 
 const stepOrder = ["planning", "image", "design", "canva", "done"];
 
-function renderProgress(job, prefix = "") {
-  jobMessage.textContent = `${prefix}${job.message}`;
+function renderProgress(job) {
+  jobMessage.textContent = job.message;
   const currentIndex = stepOrder.indexOf(job.status);
   steps.forEach((step) => {
     const index = stepOrder.indexOf(step.dataset.step);
@@ -221,11 +269,11 @@ function renderProgress(job, prefix = "") {
   });
 }
 
-async function pollJob(id, prefix) {
+async function pollJob(id) {
   const deadline = Date.now() + 7 * 60_000;
   while (Date.now() < deadline) {
     const job = await api(`/api/jobs/${encodeURIComponent(id)}`);
-    renderProgress(job, prefix);
+    renderProgress(job);
     if (job.status === "done") return job;
     if (job.status === "failed") throw new Error(job.error || "Não foi possível criar o post");
     await new Promise((resolve) => setTimeout(resolve, 1800));
@@ -233,40 +281,88 @@ async function pollJob(id, prefix) {
   throw new Error("A criação está demorando mais que o esperado. Verifique novamente em instantes.");
 }
 
-function addResult(item, job, error = null) {
-  const card = document.createElement("div");
-  card.className = `result-item${error ? " error" : ""}`;
-  const title = document.createElement("strong");
-  title.textContent = [item.date, item.title, item.subtitle].filter(Boolean).join(" — ");
-  const detail = document.createElement("p");
-  detail.textContent = error ? error.message : `${item.slideCount} ${item.slideCount === 1 ? "página editável" : "páginas editáveis"} criadas.`;
-  card.append(title, detail);
+function captionButton(caption) {
+  const button = document.createElement("button");
+  button.className = "button ghost";
+  button.type = "button";
+  button.textContent = "Copiar legenda";
+  button.disabled = !caption;
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(caption || "");
+      button.textContent = "Legenda copiada";
+      setTimeout(() => { button.textContent = "Copiar legenda"; }, 1800);
+    } catch {
+      button.textContent = "Não foi possível copiar";
+    }
+  });
+  return button;
+}
 
-  if (!error) {
+function renderResult(job) {
+  resultsList.replaceChildren();
+  const destination = job.result.destination === "google" ? "Google Slides" : "Canva";
+
+  for (const file of job.result.files) {
+    const card = document.createElement("div");
+    card.className = "result-item";
+
+    const title = document.createElement("strong");
+    title.textContent = file.title;
+
+    const slides = file.posts.reduce((total, post) => total + post.slideCount, 0);
+    const detail = document.createElement("p");
+    detail.textContent = file.posts.length > 1
+      ? `${file.posts.length} artes no mesmo arquivo · ${slides} ${slides === 1 ? "slide" : "slides"}.`
+      : `${slides} ${slides === 1 ? "página editável criada" : "páginas editáveis criadas"}.`;
+    card.append(title, detail);
+
     const actions = document.createElement("div");
     actions.className = "result-actions";
     const edit = document.createElement("a");
     edit.className = "button primary";
-    edit.href = job.result.editUrl;
+    edit.href = file.editUrl;
     edit.target = "_blank";
     edit.rel = "noopener noreferrer";
-    edit.textContent = job.result.destination === "google" ? "Editar no Google Slides" : "Editar no Canva";
-    const copy = document.createElement("button");
-    copy.className = "button ghost";
-    copy.type = "button";
-    copy.textContent = "Copiar legenda";
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(job.result.caption || "");
-        copy.textContent = "Legenda copiada";
-        setTimeout(() => { copy.textContent = "Copiar legenda"; }, 1800);
-      } catch {
-        copy.textContent = "Não foi possível copiar";
-      }
-    });
-    actions.append(edit, copy);
+    edit.textContent = `Editar no ${destination}`;
+    actions.appendChild(edit);
+    // Com um post só, a legenda é uma: cabe ao lado do link.
+    if (file.posts.length === 1) actions.appendChild(captionButton(file.posts[0].caption));
     card.appendChild(actions);
+
+    // Com vários, cada arte tem a sua legenda e a sua posição no arquivo.
+    if (file.posts.length > 1) {
+      const list = document.createElement("div");
+      list.className = "result-posts";
+      let position = 1;
+      for (const post of file.posts) {
+        const row = document.createElement("div");
+        row.className = "result-actions";
+        const name = document.createElement("span");
+        const range = post.slideCount > 1
+          ? `slides ${position}–${position + post.slideCount - 1}`
+          : `slide ${position}`;
+        name.textContent = `${range} · ${post.title}`;
+        row.append(name, captionButton(post.caption));
+        list.appendChild(row);
+        position += post.slideCount;
+      }
+      card.appendChild(list);
+    }
+
+    resultsList.appendChild(card);
   }
+}
+
+function renderFailure(error) {
+  resultsList.replaceChildren();
+  const card = document.createElement("div");
+  card.className = "result-item error";
+  const title = document.createElement("strong");
+  title.textContent = "Não foi possível criar as artes";
+  const detail = document.createElement("p");
+  detail.textContent = error.message;
+  card.append(title, detail);
   resultsList.appendChild(card);
 }
 
@@ -281,28 +377,27 @@ createSelected.addEventListener("click", async () => {
   jobError.hidden = true;
   resultsList.replaceChildren();
   result.hidden = false;
-  let completed = 0;
 
-  for (const [index, item] of selected.entries()) {
-    const prefix = `Arte ${index + 1} de ${selected.length}: `;
-    try {
-      const queued = await api("/api/jobs", { method: "POST", body: JSON.stringify(item.brief) });
-      renderProgress(queued, prefix);
-      const job = await pollJob(queued.id, prefix);
-      addResult(item, job);
-      completed += 1;
-    } catch (error) {
-      addResult(item, null, error);
-      if (/Canva|conta conectada/i.test(error.message)) {
-        await refreshStatus().catch(() => {});
-        break;
-      }
-    }
+  // Uma requisição só: o servidor devolve as artes selecionadas no mesmo arquivo.
+  const posts = selected.map((item) => ({
+    ...item.brief,
+    templateId: item.templateId || item.brief.templateId || "auto",
+  }));
+
+  try {
+    const queued = await api("/api/jobs", { method: "POST", body: JSON.stringify({ posts }) });
+    renderProgress(queued);
+    const job = await pollJob(queued.id);
+    renderResult(job);
+    jobMessage.textContent = job.message;
+  } catch (error) {
+    renderFailure(error);
+    jobMessage.textContent = "A criação não foi concluída.";
+    if (/Canva|Google|conta conectada/i.test(error.message)) await refreshStatus().catch(() => {});
+  } finally {
+    interpretBrief.disabled = false;
+    updateCreateButton();
   }
-
-  jobMessage.textContent = `${completed} de ${selected.length} ${completed === 1 ? "arte criada" : "artes criadas"}.`;
-  interpretBrief.disabled = false;
-  updateCreateButton();
 });
 
 const query = new URLSearchParams(location.search);
