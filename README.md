@@ -37,6 +37,23 @@ apagados e a ordem é reaplicada.
 O Canva ainda entrega **um arquivo por post**: o agrupamento foi feito só no Google
 Slides, que é o destino principal. O botão de criar diz qual dos dois vai acontecer.
 
+## Carrosséis
+
+Uma pauta vira carrossel quando traz `TELA 1:`, `TELA 2:` … A **TELA 1 é a capa** e as
+demais viram as páginas internas; a última ganha o layout de fechamento quando o texto
+tem *comente*, *salve*, *compartilhe*, *acesse*, *saiba mais* ou *próxima parada*.
+Quatro TELAS = quatro slides, e no arquivo agrupado elas entram em sequência junto dos
+outros posts.
+
+As TELAS são procuradas primeiro dentro do campo Título — o formato de sempre — e, só
+quando não há carrossel ali, no bloco inteiro. Isso cobre as pautas que listam as TELAS
+depois da seção "Tamanho da Arte" ou sem campo Título nenhum, que antes viravam post
+único sem qualquer aviso. Quando existe um campo Título separado que não entra na arte,
+a conferência mostra um alerta em vez de descartá-lo calado.
+
+Nas páginas internas o título é medido e reequilibrado como nas capas; o corpo **não é
+requebrado** — parágrafo é leitura, não manchete —, apenas reduz de corpo até caber.
+
 ## Encaixe do texto
 
 O servidor não tem a Montserrat instalada, então `lib/montserrat-metrics.mjs`

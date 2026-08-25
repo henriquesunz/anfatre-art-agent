@@ -109,3 +109,92 @@ test("os corpos do painel saem em pontos, não nos pixels do mestre", () => {
   assert.equal(fitted.intro.fontSize, 18);
   assert.equal(fitted.highlight.fontSize, 54);
 });
+
+// --- páginas internas do carrossel -------------------------------------------
+
+function carousel(telas) {
+  return plan({
+    templateId: "carousel",
+    jobTitle: "Carrossel",
+    intro: "Roteiros pelo Brasil:",
+    highlight: "5 destinos RV friendly",
+    slides: telas.map((tela, index) => ({ number: index + 1, ...tela })),
+  });
+}
+
+test("texto curto nas telas mantém o corpo desenhado", async () => {
+  const requests = await generateSlidesRequests(carousel([
+    { title: "Roteiros pelo Brasil", body: "" },
+    { title: "Serra Gaúcha", body: "Clima europeu e boas estradas." },
+  ]), null, uploader);
+
+  const sizes = textBoxes(requests).map((shape) => shape.sizePoints);
+  assert.ok(sizes.includes(38), `o título da tela deveria ficar em 38pt (saiu ${sizes.join(", ")})`);
+  assert.ok(sizes.includes(21), `o corpo da tela deveria ficar em 21pt (saiu ${sizes.join(", ")})`);
+});
+
+test("título longo de tela reduz e não ultrapassa a caixa", async () => {
+  const longo = "Circuito histórico e de serras com paradas obrigatórias em Tiradentes";
+  const requests = await generateSlidesRequests(carousel([
+    { title: "Capa", body: "" },
+    { title: longo, body: "Detalhe." },
+  ]), null, uploader);
+
+  const shape = textBoxes(requests).find((item) => item.text.replace(/\n/g, " ") === longo);
+  assert.ok(shape, "a tela com título longo não foi encontrada");
+  assert.ok(shape.sizePoints < 38, "o título longo deveria ter reduzido");
+  assert.ok(shape.sizePoints >= 24, "reduziu além do piso permitido");
+
+  const usable = shape.widthPoints - 14.4;
+  for (const line of shape.text.split("\n")) {
+    const width = measurePoints(line, shape.sizePoints, shape.weight);
+    assert.ok(width <= usable + 0.5, `"${line}" ocupa ${width.toFixed(1)}pt em ${usable.toFixed(1)}pt`);
+  }
+});
+
+test("o corpo da tela não é requebrado, só reduzido", async () => {
+  const corpo = [
+    "Destino: Gramado e Canela",
+    "Por que ir: clima europeu, gastronomia incrível e rodovias em ótimas condições.",
+    "Pontos fortes: energia 220v, água limpa, descarte adequado e boa segurança.",
+  ].join("\n");
+
+  const requests = await generateSlidesRequests(carousel([
+    { title: "Capa", body: "" },
+    { title: "Serra Gaúcha", body: corpo },
+  ]), null, uploader);
+
+  const shape = textBoxes(requests).find((item) => item.text.startsWith("Destino: Gramado"));
+  assert.ok(shape, "o corpo da tela não foi encontrado");
+  // As quebras do briefing são preservadas: nenhuma linha nova foi inventada.
+  assert.equal(shape.text, corpo);
+});
+
+test("corpo muito longo reduz até o piso em vez de manter 21pt", async () => {
+  const enorme = Array.from({ length: 14 }, (unused, index) =>
+    `Parágrafo ${index + 1}: um trecho com detalhes suficientes para ocupar a largura inteira da caixa de texto.`).join("\n");
+
+  const requests = await generateSlidesRequests(carousel([
+    { title: "Capa", body: "" },
+    { title: "Tela cheia", body: enorme },
+  ]), null, uploader);
+
+  const shape = textBoxes(requests).find((item) => item.text.startsWith("Parágrafo 1"));
+  assert.ok(shape.sizePoints < 21, "o corpo enorme deveria ter reduzido");
+  assert.ok(shape.sizePoints >= 13, "reduziu além do piso permitido");
+});
+
+test("a tela de fechamento também é medida", async () => {
+  const requests = await generateSlidesRequests(carousel([
+    { title: "Capa", body: "" },
+    { title: "Serra Gaúcha", body: "Detalhe." },
+    { title: "Qual desses destinos vai ser a sua próxima parada?", body: "Comente aqui embaixo e salve o post." },
+  ]), null, uploader);
+
+  const shape = textBoxes(requests).find((item) => item.text.includes("próxima parada"));
+  assert.ok(shape, "a tela de fechamento não foi encontrada");
+  const usable = shape.widthPoints - 14.4;
+  for (const line of shape.text.split("\n")) {
+    assert.ok(measurePoints(line, shape.sizePoints, shape.weight) <= usable + 0.5);
+  }
+});
