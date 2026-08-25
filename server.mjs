@@ -688,8 +688,8 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/canva/import-library") {
       if (!requireAuthenticated(req, res) || !requireConfigured(res)) return;
       const accessToken = await validAccessToken();
-      const bytes = await fs.readFile(path.join(rootDir, "fixtures", "anfatre-template-library.pptx"));
-      const imported = await waitForImport(accessToken, await startImport(accessToken, bytes, "ANFATRE — biblioteca de posts editáveis"));
+      const bytes = await fs.readFile(path.join(rootDir, "fixtures", "anfatre-production-master.pptx"));
+      const imported = await waitForImport(accessToken, await startImport(accessToken, bytes, "ANFATRE — mestre de produção editável"));
       const design = imported.result?.designs?.[0];
       if (!design?.urls?.edit_url) throw new Error("O Canva importou, mas não devolveu um link de edição");
       return json(res, 200, { designId: design.id, editUrl: design.urls.edit_url, viewUrl: design.urls.view_url });

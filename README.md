@@ -15,6 +15,12 @@ Painel de produção de posts da ANFATRE RV. A social cola um post ou a pauta in
 9. um design por post selecionado; carrosséis são entregues com todas as páginas no mesmo editável;
 10. links diretos para revisão no Canva e legendas prontas para copiar.
 
+Os posts de uma página são montados diretamente a partir de
+`fixtures/anfatre-production-master.pptx`. O gerador escolhe uma das variações
+aprovadas, mantém somente esse slide, preenche os marcadores editáveis e troca a
+fotografia com corte `cover` quando uma nova imagem é gerada. Carrosséis com
+páginas internas continuam usando o construtor atual; o mestre fornece a capa.
+
 ## Configuração local
 
 1. Copie `.env.example` para `.env.local`.
