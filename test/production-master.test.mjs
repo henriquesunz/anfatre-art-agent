@@ -46,6 +46,9 @@ function textShapes(slideXml) {
       cx: Number(ext[1]),
       sizePoints: Number(xml.match(/<a:r><a:rPr[^>]*\bsz="(\d+)"/)[1]) / 100,
       bold: /<a:r><a:rPr[^>]*\bb="1"/.test(xml),
+      // O peso real vem da face nomeada, não do `b="1"`.
+      weight: /typeface="Montserrat Black"/.test(xml) ? "black" : "regular",
+      face: xml.match(/<a:latin typeface="([^"]*)"/)?.[1],
     });
   }
   return shapes;
@@ -134,7 +137,7 @@ test("nenhuma linha ultrapassa a largura útil da caixa", async () => {
       // 91440 EMU de recuo lateral padrão de cada lado.
       const usableWidth = toPoints(shape.cx - 2 * 91440);
       for (const line of shape.lines) {
-        const width = measurePoints(line, shape.sizePoints, shape.bold);
+        const width = measurePoints(line, shape.sizePoints, shape.weight);
         assert.ok(
           width <= usableWidth + 0.5,
           `${JSON.stringify(variation)} · "${line}" ocupa ${width.toFixed(1)}pt em ${usableWidth.toFixed(1)}pt`,
@@ -240,4 +243,20 @@ test("preenche pergunta e fechamento no layout institucional de CTA", async () =
     "Acesse nosso site e confira a lista completa.",
   );
   assert.doesNotMatch(slideXml, /\{\{[A-Z0-9_]+\}\}/);
+});
+
+test("o texto de display do mestre sai em Montserrat Black", async () => {
+  const { slideXml } = await slideXmlFor({ templateId: "photo-blue" });
+  const shapes = textShapes(slideXml);
+
+  const highlight = shapes.find((shape) => shape.name === "TextBox 13");
+  assert.equal(highlight.face, "Montserrat Black");
+  assert.equal(highlight.weight, "black");
+  // `b="1"` continua, para quem não tiver a face instalada cair em negrito.
+  assert.equal(highlight.bold, true);
+
+  // O texto de apoio não é display: segue na família base.
+  const intro = shapes.find((shape) => shape.name === "TextBox 12");
+  assert.equal(intro.face, "Montserrat");
+  assert.equal(intro.weight, "regular");
 });

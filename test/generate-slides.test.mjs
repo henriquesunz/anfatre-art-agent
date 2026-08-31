@@ -33,9 +33,8 @@ function textBoxes(requests) {
     if (request.updateTextStyle && shapes.has(request.updateTextStyle.objectId)) {
       const shape = shapes.get(request.updateTextStyle.objectId);
       shape.sizePoints = request.updateTextStyle.style.fontSize.magnitude;
-      shape.weight = request.updateTextStyle.style.weightedFontFamily?.weight === 800
-        ? "extrabold"
-        : (request.updateTextStyle.style.bold ? "bold" : "regular");
+      const weight = request.updateTextStyle.style.weightedFontFamily?.weight;
+      shape.weight = weight === 900 ? "black" : (weight === 800 ? "extrabold" : (request.updateTextStyle.style.bold ? "bold" : "regular"));
     }
   }
   return [...shapes.values()].filter((shape) => shape.text);
@@ -196,5 +195,21 @@ test("a tela de fechamento também é medida", async () => {
   const usable = shape.widthPoints - 14.4;
   for (const line of shape.text.split("\n")) {
     assert.ok(measurePoints(line, shape.sizePoints, shape.weight) <= usable + 0.5);
+  }
+});
+
+test("todo texto de display no Slides pede peso 900", async () => {
+  for (const variation of variations) {
+    const requests = await generateSlidesRequests(plan(variation), null, uploader);
+    for (const request of requests) {
+      const style = request.updateTextStyle?.style;
+      if (!style?.bold) continue;
+      assert.equal(
+        style.weightedFontFamily?.weight,
+        900,
+        `${JSON.stringify(variation)} · texto em negrito sem peso 900`,
+      );
+      assert.match(request.updateTextStyle.fields, /weightedFontFamily/);
+    }
   }
 });
