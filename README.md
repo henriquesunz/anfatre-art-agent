@@ -54,6 +54,24 @@ a conferência mostra um alerta em vez de descartá-lo calado.
 Nas páginas internas o título é medido e reequilibrado como nas capas; o corpo **não é
 requebrado** — parágrafo é leitura, não manchete —, apenas reduz de corpo até caber.
 
+## Peso da tipografia
+
+Todo texto de display sai em **Montserrat Black (900)**, o peso mais pesado da família.
+O caminho para pedir isso muda conforme o destino:
+
+- **Google Slides**: `weightedFontFamily: { fontFamily: "Montserrat", weight: 900 }`.
+  `bold: true` sozinho renderiza apenas 700.
+- **PPTX (mestre e construtor)**: o OOXML não sabe pedir "peso 900" de uma família —
+  é preciso nomear a face. A Montserrat expõe a Black como família própria, então os
+  runs de display usam `typeface="Montserrat Black"`. O `b="1"` continua no XML para
+  que quem não tiver a face instalada ao menos caia em negrito.
+
+O texto de apoio dos painéis segue na família base, em Regular.
+
+Trocar de 700/800 para 900 alarga o texto cerca de 2%, e por isso as medidas de
+largura precisam usar a tabela da Black — ela está em `montserrat-metrics.mjs` junto
+das outras três.
+
 ## Encaixe do texto
 
 O servidor não tem a Montserrat instalada, então `lib/montserrat-metrics.mjs`
